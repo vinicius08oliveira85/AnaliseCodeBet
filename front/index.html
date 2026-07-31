@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Análise de Apostas</title>
+<style>
+  :root {
+    --bg: #0d101c; --card: #161b2e; --card2: #1f2640; --borda: #2a3358;
+    --txt: #e8eaf6; --mut: #93a0c8; --ok: #34d399; --med: #fbbf24; --bad: #f87171;
+    --azul: #60a5fa; --sel: #0ea5e9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--txt); font: 14px/1.45 system-ui, -apple-system, sans-serif; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 19px; }
+  .sub { color: var(--mut); margin: 4px 0 14px; font-size: 13px; }
+  h2 { font-size: 14px; margin: 20px 0 10px; color: var(--azul); text-transform: uppercase; letter-spacing: .6px; display: flex; align-items: center; gap: 8px; }
+  h2 .n { color: var(--mut); font-weight: 400; letter-spacing: 0; }
+  .card { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .stat { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 10px 12px; }
+  .stat .l { color: var(--mut); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+  .stat .v { font-size: 20px; font-weight: 800; margin-top: 2px; }
+  .stat .n { color: var(--mut); font-size: 11px; margin-top: 2px; }
+  .stat.ok .v { color: var(--ok); } .stat.med .v { color: var(--med); } .stat.bad .v { color: var(--bad); }
+  .stat.cal { border-color: #2b5c4b; }
+  .stat.cal .l { color: var(--ok); }
+
+  .mc { padding: 12px 14px; }
+  .mc-head { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; flex-wrap: wrap; }
+  .mc-head .vs { color: var(--mut); font-weight: 400; }
+  .mc-meta { color: var(--mut); font-size: 12px; margin: 3px 0 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+  .badge.ok { background: rgba(52,211,153,.14); color: var(--ok); }
+  .badge.med { background: rgba(251,191,36,.14); color: var(--med); }
+  .mkt-row { display: flex; align-items: center; gap: 6px; margin: 5px 0; flex-wrap: wrap; }
+  .mkt-name { width: 74px; color: var(--mut); font-size: 11px; text-transform: uppercase; letter-spacing: .4px; flex: none; }
+  button.pick {
+    border: 1px solid var(--borda); background: var(--card2); color: var(--txt);
+    border-radius: 8px; padding: 5px 10px; cursor: pointer; font-size: 12px; line-height: 1.2;
+  }
+  button.pick small { display: block; color: var(--mut); font-size: 10px; }
+  button.pick.sel { background: var(--sel); border-color: var(--sel); color: #04121f; font-weight: 700; }
+  button.pick.sel small { color: #0b2a40; }
+  button.pick:hover { border-color: var(--azul); }
+  button.pick.top { border-color: rgba(96,165,250,.65); }
+  button.pick .star { color: var(--azul); }
+  .mkt-row .sem { color: var(--mut); font-style: italic; font-size: 12px; }
+  details { margin-top: 8px; }
+  details summary { color: var(--mut); font-size: 12px; cursor: pointer; user-select: none; }
+  details .full { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 5px; margin-top: 8px; }
+  details .full .lbl { color: var(--mut); font-size: 10px; text-align: center; margin-bottom: 2px; }
+  details .full button { width: 100%; padding: 4px 2px; font-size: 11px; }
+
+  .combo-item { display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    background: var(--card2); border: 1px solid var(--borda); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+  .combo-item .nome { flex: 1; font-size: 13px; }
+  .combo-item .p { font-size: 14px; }
+  .combo-item button.x { border: none; background: transparent; color: var(--bad); cursor: pointer; font-size: 15px; }
+  .totais { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; }
+  .totais b.p { font-size: 16px; }
+  .p.ok { color: var(--ok); } .p.med { color: var(--med); } .p.bad { color: var(--bad); }
+  .badge.big { padding: 2px 9px; font-size: 11px; }
+  .auto li { list-style: none; background: var(--card2); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 12.5px; }
+  .auto .d { color: var(--mut); font-size: 11.5px; margin-top: 3px; }
+  .auto b { color: var(--ok); }
+  .auto button.usar { float: right; border: 1px solid var(--borda); background: var(--card); color: var(--txt); border-radius: 7px; padding: 3px 9px; font-size: 11px; cursor: pointer; }
+  .auto button.usar:hover { border-color: var(--azul); }
+  .vazio { color: var(--mut); font-style: italic; font-size: 13px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+  .btn { border: 1px solid var(--borda); background: var(--card2); color: var(--txt); border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 12px; }
+  .btn:hover { border-color: var(--azul); }
+  textarea { width: 100%; background: var(--card2); color: var(--txt); border: 1px solid var(--borda); border-radius: 8px; padding: 8px; font: 12px/1.5 monospace; }
+  .od { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 600px) { .od { grid-template-columns: 1fr; } }
+  .od .mkt { color: var(--mut); font-size: 11px; margin-bottom: 4px; }
+  details.odds summary { color: var(--mut); font-size: 13px; cursor: pointer; }
+  .foot { color: var(--mut); font-size: 11px; margin: 18px 0 8px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚽ Análise de Apostas</h1>
+  <div class="sub" id="sub">carregando…</div>
+
+  <h2>Taxas de acerto <span class="n" id="meta1"></span></h2>
+  <div class="stats" id="stats"></div>
+
+  <h2>Jogos e previsões <span class="n" id="meta2"></span></h2>
+  <div id="jogos"></div>
+
+  <div class="grid2">
+    <div>
+      <h2>Sua combinação</h2>
+      <div class="card" id="combo"></div>
+    </div>
+    <div>
+      <h2>Sugestões automáticas</h2>
+      <div class="card" id="auto"></div>
+    </div>
+  </div>
+
+  <details class="odds card">
+    <summary>🎯 Calibração com odds (opcional) — melhora as previsões com o mercado</summary>
+    <div style="margin-top:10px">
+      <div class="od">
+        <div>
+          <div class="mkt">Odds 1X2 — um jogo por linha: <b>1,X,2</b> <span class="n" style="color:var(--mut)">(w=<span id="w12"></span>)</span></div>
+          <textarea id="odds12" rows="5" placeholder="1.85,3.40,4.20&#10;2.10,3.10,3.60"></textarea>
+        </div>
+        <div>
+          <div class="mkt">Odds Over/Under 2.5 gols — um jogo por linha: <b>over,under</b> <span class="n" style="color:var(--mut)">(w=<span id="w25"></span>)</span></div>
+          <textarea id="odds25" rows="5" placeholder="1.95,1.85&#10;2.40,1.55"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px">
+        <button class="btn" onclick="aplicarOdds()">Aplicar calibração</button>
+        <button class="btn" onclick="limparOdds()">Limpar</button>
+      </div>
+    </div>
+  </details>
+
+  <div class="foot">Previsões do modelo (Poisson + Dixon-Coles, SOT, escanteios) · Validação walk-forward fora de amostra</div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
