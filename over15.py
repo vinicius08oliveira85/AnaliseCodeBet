@@ -26,8 +26,8 @@ BR_SEASONS = ["2023", "2024", "2025", "2026"]
 CDB_SEASONS = ["2024", "2025", "2026"]
 TUNE_SEASON = {"BRA": "2025", "CDB": "2025"}
 MIN_MATCHES = 4
-GAMMA = 0.90
-PRIOR = 5.0
+GAMMA = 0.95
+PRIOR = 2.0
 
 ALIASES = {
     "man city": "Man City", "manchester city": "Man City", "man utd": "Man United",
