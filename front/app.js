@@ -135,11 +135,11 @@ function renderJogos() {
     }
 
     const escDisp = (pr.esc_over || []).length;
-    const esc = escDisp ? rec(REC_ESC, 'esc') : null;
+    const escRec = escDisp ? rec(REC_ESC, 'esc') : null;
     let escB = null;
-    if (esc) {
-      const eTop = Math.max(...esc.map(g => g.p));
-      escB = esc.map(g => button(j, g.tipo, g.li, g.p, g.label.replace('Esc ', ''), g.p === eTop)).join('');
+    if (escRec) {
+      const eTop = Math.max(...escRec.map(g => g.p));
+      escB = escRec.map(g => button(j, g.tipo, g.li, g.p, g.label.replace('Esc ', ''), g.p === eTop)).join('');
     }
 
     const full = `<details><summary>todas as linhas (${pr.gols_over.length + (pr.ht_over ? pr.ht_over.length : 0) + escDisp} mercados)</summary>
