@@ -7,6 +7,7 @@ const REC_HT = [[0.5, 'over'], [2.5, 'under']];
 const REC_ESC = [[7.5, 'over'], [11.5, 'under'], [12.5, 'under']];
 
 let data = null;
+let dataFiltro = null;
 const picks = [];
 const pickSeq = {};
 const calP = {};
@@ -15,6 +16,27 @@ function pct(x) { return (100 * x).toFixed(1) + '%'; }
 function clsP(x) { return x >= 0.75 ? 'ok' : x >= 0.6 ? 'med' : 'bad'; }
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function rotuloData(iso) {
+  const d = new Date(iso);
+  const dias = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  return dias[d.getUTCDay()] + ', ' + String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0');
+}
+
+function renderFiltro() {
+  const el = document.getElementById('filtro');
+  const dias = [...new Set(data.jogos.map(g => g.data.slice(0, 10)))].sort();
+  const cnt = d => data.jogos.filter(g => g.data.slice(0, 10) === d).length;
+  const btn = (key, label) => `<button class="${dataFiltro === key ? 'act' : ''}" onclick="setFiltro('${key}')">${label}</button>`;
+  el.innerHTML = btn('', 'Todos <span class="cnt">(' + data.jogos.length + ')</span>') +
+    dias.map(d => btn(d, rotuloData(d) + ' <span class="cnt">(' + cnt(d) + ')</span>')).join('');
+}
+
+function setFiltro(key) {
+  dataFiltro = key || null;
+  renderFiltro();
+  renderJogos();
 }
 
 function taxaPick(tipo, linha, p) {
@@ -116,7 +138,11 @@ function mktRow(j, nome, buts) {
 
 function renderJogos() {
   const el = document.getElementById('jogos');
-  el.innerHTML = data.jogos.map((g, j) => {
+  const idxs = data.jogos
+    .map((g, i) => i)
+    .filter(i => !dataFiltro || data.jogos[i].data.slice(0, 10) === dataFiltro);
+  el.innerHTML = idxs.map(j => {
+    const g = data.jogos[j];
     const pr = g.prob;
     const rec = (lines, mkts) => lines
       .map(([li, side]) => {
@@ -175,6 +201,10 @@ function renderJogos() {
       ${full}
     </div>`;
   }).join('');
+  const n = idxs.length;
+  document.getElementById('meta2').textContent =
+    (dataFiltro ? '· mostrando ' + n + ' de ' + data.jogos.length + ' jogos' : '· ' + data.jogos.length + ' jogos') +
+    ' · clique para selecionar (✦ = maior chance do mercado)';
 }
 
 function renderCombo() {
@@ -333,12 +363,12 @@ fetch('analise.json')
     document.getElementById('sub').textContent =
       'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot;
     document.getElementById('meta1').textContent = '· validação fora de amostra';
-    document.getElementById('meta2').textContent = '· clique para selecionar (✦ = maior chance do mercado)';
     if (d.cal && d.cal.x12) {
       document.getElementById('w12').textContent = d.cal.x12.w.toFixed(2);
       document.getElementById('w25').textContent =
         (d.cal.gols_over && d.cal.gols_over['2.5']) ? d.cal.gols_over['2.5'].w.toFixed(2) : '—';
     }
+    renderFiltro();
     renderStats();
     renderJogos();
     renderCombo();
