@@ -62,6 +62,10 @@ def load_rows(data_dir, refresh):
                                  "o_h": ov._float(r.get("AvgCH")), "o_d": ov._float(r.get("AvgCD")),
                                  "o_a": ov._float(r.get("AvgCA")), "o_lines": {},
                                  "over": None, "under": None})
+        elif lg.get("espn_only"):
+            print(f"  {lg['nome']}: buscando histórico na ESPN (1ª vez demora)...")
+            rows = espn_cup_history(data_dir, refresh)
+            print(f"  {lg['nome']}: {len(rows)} jogos")
         else:
             for seas in ov.EU_SEASONS:
                 p = ov.download_csv(f"https://www.football-data.co.uk/mmz4281/{seas}/{lg['code']}.csv",
@@ -157,6 +161,101 @@ def espn_bra_corners(data_dir, refresh):
                 ev["hhg"], ev["hag"] = hhg, hag
     cache.write_text(json.dumps(events, ensure_ascii=False))
     return events
+
+
+def espn_cup_history(data_dir, refresh):
+    cache = data_dir / "espn_cdb_history.json"
+    today = dt.date.today()
+    cache_date = dt.date.fromtimestamp(cache.stat().st_mtime) if cache.exists() else None
+    if cache.exists() and not refresh and cache_date == today:
+        raw = json.loads(cache.read_text())
+        rows = []
+        for r in raw:
+            m = dict(r)
+            m["date"] = dt.date.fromisoformat(r["date"])
+            rows.append(m)
+        return rows
+    events = {}
+    for season in ov.CDB_SEASONS:
+        y = int(season)
+        d = dt.date(y, 2, 1)
+        end = min(dt.date(y, 12, 31), today)
+        while d <= end:
+            d2 = min(d + dt.timedelta(days=14), end)
+            ch = f"{d:%Y%m%d}-{d2:%Y%m%d}"
+            url = (f"https://site.api.espn.com/apis/site/v2/sports/soccer/"
+                   f"bra.copa_do_brazil/scoreboard?dates={ch}")
+            try:
+                data = json.loads(ov.fetch(url, timeout=30))
+            except Exception:
+                d = d2 + dt.timedelta(days=1)
+                continue
+            for e in data.get("events", []):
+                c = e["competitions"][0]
+                if c["status"]["type"]["name"] not in ("STATUS_FULL_TIME", "STATUS_FINAL"):
+                    continue
+                ent = {"date": e["date"], "names": {}, "ids": {}}
+                for x in c["competitors"]:
+                    role = x.get("homeAway")
+                    if role not in ("home", "away"):
+                        continue
+                    nm = (x.get("team") or {}).get("displayName", "")
+                    tid = (x.get("team") or {}).get("id")
+                    ent["names"][role] = nm
+                    ent["ids"][role] = tid
+                if "home" not in ent["names"] or "away" not in ent["names"]:
+                    continue
+                events[e["id"]] = ent
+            d = d2 + dt.timedelta(days=1)
+    rows = []
+    for eid, ev in events.items():
+        try:
+            s = json.loads(ov.fetch(f"https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event={eid}",
+                                    timeout=20))
+        except Exception:
+            continue
+        hdr = (s.get("header") or {}).get("competitions", [{}])[0]
+        info = {}
+        for c in hdr.get("competitors", []):
+            tid = (c.get("team") or {}).get("id")
+            if not tid:
+                continue
+            try:
+                score = int(c.get("score"))
+            except (TypeError, ValueError):
+                continue
+            ls = c.get("linescores") or []
+            ht = None
+            if ls and ls[0].get("displayValue") is not None:
+                try:
+                    ht = int(ls[0]["displayValue"])
+                except (TypeError, ValueError):
+                    pass
+            info[tid] = {"score": score, "ht": ht}
+        hid, aid = ev["ids"].get("home"), ev["ids"].get("away")
+        if not hid or not aid or hid not in info or aid not in info:
+            continue
+        try:
+            d = dt.date.fromisoformat(ev["date"][:10])
+        except ValueError:
+            continue
+        rows.append({
+            "date": d.isoformat(), "season": str(d.year),
+            "home": ev["names"]["home"], "away": ev["names"]["away"],
+            "hg": info[hid]["score"], "ag": info[aid]["score"],
+            "hhg": info[hid]["ht"], "hag": info[aid]["ht"],
+            "hst": None, "ast": None, "hc": None, "ac": None,
+            "o_h": None, "o_d": None, "o_a": None, "o_lines": {},
+            "over": None, "under": None,
+        })
+    rows.sort(key=lambda m: (m["date"], m["home"]))
+    cache.write_text(json.dumps(rows, ensure_ascii=False))
+    out = []
+    for r in rows:
+        m = dict(r)
+        m["date"] = dt.date.fromisoformat(r["date"])
+        out.append(m)
+    return out
 
 
 def merge_bra_corners(rows, events):

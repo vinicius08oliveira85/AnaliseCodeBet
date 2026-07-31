@@ -12,6 +12,7 @@ from pathlib import Path
 
 LEAGUES = [
     {"key": "BRA", "nome": "Brasileirão Série A", "espn": "bra.1", "code": "BR1"},
+    {"key": "CDB", "nome": "Copa do Brasil", "espn": "bra.copa_do_brazil", "code": "CDB", "espn_only": True},
     {"key": "ENG", "nome": "Premier League", "espn": "eng.1", "code": "E0"},
     {"key": "GER", "nome": "Bundesliga", "espn": "ger.1", "code": "D1"},
     {"key": "ITA", "nome": "Serie A (ITA)", "espn": "ita.1", "code": "I1"},
@@ -21,7 +22,8 @@ LEAGUES = [
 
 EU_SEASONS = ["2223", "2324", "2425", "2526"]
 BR_SEASONS = ["2023", "2024", "2025", "2026"]
-TUNE_SEASON = {"BRA": "2025"}
+CDB_SEASONS = ["2024", "2025", "2026"]
+TUNE_SEASON = {"BRA": "2025", "CDB": "2025"}
 MIN_MATCHES = 4
 SEASON_BLEND = 0.5
 
@@ -91,6 +93,19 @@ ALIASES = {
     "everton": "Everton", "fulham": "Fulham", "arsenal": "Arsenal", "chelsea": "Chelsea",
     "aston villa": "Aston Villa", "brentford": "Brentford",
     "newcastle united": "Newcastle", "west ham united": "West Ham", "afc bournemouth": "Bournemouth",
+    "aparecidense": "Aparecidense", "nova iguacu": "Nova Iguacu", "nova iguaçu": "Nova Iguacu",
+    "maringa": "Maringa", "cascavel": "Cascavel", "manaus": "Manaus",
+    "caxias do sul": "Caxias do Sul", "retro": "Retro", "retrô": "Retro",
+    "brusque": "Brusque", "operario pr": "Operario PR", "operário pr": "Operario PR",
+    "vila nova": "Vila Nova", "ponte preta": "Ponte Preta", "criciuma": "Criciuma",
+    "botafogo pb": "Botafogo PB", "sao bernardo": "Sao Bernardo",
+    "tombense": "Tombense", "sport recife": "Sport Recife", "america rn": "America RN",
+    "america-rn": "America RN", "amazonas": "Amazonas", "amazonas fc": "Amazonas",
+    "anapolis": "Anapolis", "aguia de maraba": "Aguia de Maraba",
+    "uniao rondonopolis": "Uniao Rondonopolis", "olimpia": "Olimpia",
+    "sampaio correa": "Sampaio Correa", "sampaio corrêa": "Sampaio Correa",
+    "nautico": "Nautico", "abc": "ABC", "cs alagoano": "CSA", "csa": "CSA",
+    "ituano": "Ituano", "paysandu": "Paysandu", "remo": "Remo", "clube do remo": "Remo",
 }
 
 
@@ -145,6 +160,8 @@ def _goals(s):
 def load_history(data_dir, refresh):
     hist = {}
     for lg in LEAGUES:
+        if lg.get("espn_only"):
+            continue
         rows = []
         if lg["key"] == "BRA":
             p = download_csv("https://www.football-data.co.uk/new/BRA.csv", data_dir, "BRA.csv", refresh)
