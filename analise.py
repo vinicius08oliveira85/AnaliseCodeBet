@@ -37,11 +37,13 @@ def _goals(s):
 
 
 def load_rows(data_dir, refresh):
+    refresh_csv = "csv" in refresh
+    refresh_cdb = "cdb" in refresh
     rows_by_league = {}
     for lg in ov.LEAGUES:
         rows = []
         if lg["key"] == "BRA":
-            p = ov.download_csv("https://www.football-data.co.uk/new/BRA.csv", data_dir, "BRA.csv", refresh)
+            p = ov.download_csv("https://www.football-data.co.uk/new/BRA.csv", data_dir, "BRA.csv", refresh_csv)
             if not p:
                 continue
             with open(p, newline="", encoding="utf-8-sig") as f:
@@ -64,12 +66,12 @@ def load_rows(data_dir, refresh):
                                  "over": None, "under": None})
         elif lg.get("espn_only"):
             print(f"  {lg['nome']}: buscando histórico na ESPN (1ª vez demora)...")
-            rows = espn_cup_history(data_dir, refresh)
+            rows = espn_cup_history(data_dir, refresh_cdb)
             print(f"  {lg['nome']}: {len(rows)} jogos")
         else:
             for seas in ov.EU_SEASONS:
                 p = ov.download_csv(f"https://www.football-data.co.uk/mmz4281/{seas}/{lg['code']}.csv",
-                                    data_dir, f"{lg['code']}_{seas}.csv", refresh)
+                                    data_dir, f"{lg['code']}_{seas}.csv", refresh_csv)
                 if not p:
                     continue
                 with open(p, newline="", encoding="utf-8-sig") as f:
@@ -108,11 +110,25 @@ def espn_bra_corners(data_dir, refresh):
     cache_date = dt.date.fromtimestamp(cache.stat().st_mtime) if cache.exists() else None
     if cache.exists() and not refresh and cache_date == today:
         return json.loads(cache.read_text())
+    events = {}
+    if cache.exists() and not refresh:
+        events = json.loads(cache.read_text())
+    last_date = None
+    for ev in events.values():
+        try:
+            d = dt.datetime.fromisoformat(ev["date"].replace("Z", "+00:00")).date()
+        except (ValueError, KeyError, AttributeError):
+            continue
+        if last_date is None or d > last_date:
+            last_date = d
+    cutoff = (last_date - dt.timedelta(days=5)) if last_date else None
     year = today.year
     quarters = (("01", "03"), ("04", "06"), ("07", "09"), ("10", "12"))
-    chunks = [f"{year}{a}01-{year}{b}30" for a, b in quarters]
-    events = {}
-    for ch in chunks:
+    new_events = {}
+    for a, b in quarters:
+        if cutoff is not None and dt.date(year, int(b), 30) < cutoff:
+            continue
+        ch = f"{year}{a}01-{year}{b}30"
         url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/scoreboard?dates={ch}"
         try:
             data = json.loads(ov.fetch(url, timeout=30))
@@ -124,8 +140,13 @@ def espn_bra_corners(data_dir, refresh):
             if st not in ("STATUS_FULL_TIME", "STATUS_FINAL"):
                 continue
             t = {x["homeAway"]: x["team"]["displayName"] for x in c["competitors"]}
-            events[e["id"]] = {"date": e["date"], "home": t.get("home"), "away": t.get("away")}
-    for eid in events:
+            new_events[e["id"]] = {"date": e["date"], "home": t.get("home"), "away": t.get("away")}
+    events.update(new_events)
+    missing = [eid for eid, ev in events.items() if "hc" not in ev or "hhg" not in ev]
+    total = len(missing)
+    for i, eid in enumerate(missing, 1):
+        if total > 1 and (i % 25 == 0 or i == total):
+            print(f"\r  Corners BRA: {i}/{total} jogos", end="", flush=True)
         try:
             s = json.loads(ov.fetch(f"https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event={eid}",
                                     timeout=20))
@@ -137,8 +158,8 @@ def espn_bra_corners(data_dir, refresh):
             for st in t.get("statistics", []):
                 if st.get("name") == "wonCorners":
                     corners[name] = int(st.get("displayValue") or 0)
+        ev = events[eid]
         if len(corners) == 2:
-            ev = events[eid]
             hc = corners.get(ev["home"])
             ac = corners.get(ev["away"])
             if hc is not None and ac is not None:
@@ -154,11 +175,12 @@ def espn_bra_corners(data_dir, refresh):
                 except (TypeError, ValueError):
                     pass
         if len(ht) == 2:
-            ev = events[eid]
             hhg = ht.get(ev["home"])
             hag = ht.get(ev["away"])
             if hhg is not None and hag is not None:
                 ev["hhg"], ev["hag"] = hhg, hag
+    if total > 1:
+        print()
     cache.write_text(json.dumps(events, ensure_ascii=False))
     return events
 
@@ -175,40 +197,66 @@ def espn_cup_history(data_dir, refresh):
             m["date"] = dt.date.fromisoformat(r["date"])
             rows.append(m)
         return rows
-    events = {}
+    old = []
+    if cache.exists() and not refresh:
+        raw = json.loads(cache.read_text())
+        for r in raw:
+            m = dict(r)
+            m["date"] = dt.date.fromisoformat(r["date"])
+            old.append(m)
+    if old:
+        last_date = max(m["date"] for m in old)
+        cutoff = last_date - dt.timedelta(days=10)
+        keep = [m for m in old if m["date"] < cutoff]
+    else:
+        cutoff = None
+        keep = []
+    pairs = []
     for season in ov.CDB_SEASONS:
         y = int(season)
         d = dt.date(y, 2, 1)
         end = min(dt.date(y, 12, 31), today)
         while d <= end:
             d2 = min(d + dt.timedelta(days=14), end)
-            ch = f"{d:%Y%m%d}-{d2:%Y%m%d}"
-            url = (f"https://site.api.espn.com/apis/site/v2/sports/soccer/"
-                   f"bra.copa_do_brazil/scoreboard?dates={ch}")
-            try:
-                data = json.loads(ov.fetch(url, timeout=30))
-            except Exception:
-                d = d2 + dt.timedelta(days=1)
-                continue
-            for e in data.get("events", []):
-                c = e["competitions"][0]
-                if c["status"]["type"]["name"] not in ("STATUS_FULL_TIME", "STATUS_FINAL"):
-                    continue
-                ent = {"date": e["date"], "names": {}, "ids": {}}
-                for x in c["competitors"]:
-                    role = x.get("homeAway")
-                    if role not in ("home", "away"):
-                        continue
-                    nm = (x.get("team") or {}).get("displayName", "")
-                    tid = (x.get("team") or {}).get("id")
-                    ent["names"][role] = nm
-                    ent["ids"][role] = tid
-                if "home" not in ent["names"] or "away" not in ent["names"]:
-                    continue
-                events[e["id"]] = ent
+            pairs.append((season, d, d2))
             d = d2 + dt.timedelta(days=1)
+    if cutoff is not None:
+        pairs = [(s, d, d2) for (s, d, d2) in pairs if d2 >= cutoff]
+    total = len(pairs)
+    events = {}
+    for i, (season, d, d2) in enumerate(pairs, 1):
+        if total > 1 and (i % 5 == 0 or i == total):
+            print(f"\r  CDB histórico: {i}/{total} janelas", end="", flush=True)
+        ch = f"{d:%Y%m%d}-{d2:%Y%m%d}"
+        url = (f"https://site.api.espn.com/apis/site/v2/sports/soccer/"
+               f"bra.copa_do_brazil/scoreboard?dates={ch}")
+        try:
+            data = json.loads(ov.fetch(url, timeout=30))
+        except Exception:
+            continue
+        for e in data.get("events", []):
+            c = e["competitions"][0]
+            if c["status"]["type"]["name"] not in ("STATUS_FULL_TIME", "STATUS_FINAL"):
+                continue
+            ent = {"date": e["date"], "names": {}, "ids": {}}
+            for x in c["competitors"]:
+                role = x.get("homeAway")
+                if role not in ("home", "away"):
+                    continue
+                nm = (x.get("team") or {}).get("displayName", "")
+                tid = (x.get("team") or {}).get("id")
+                ent["names"][role] = nm
+                ent["ids"][role] = tid
+            if "home" not in ent["names"] or "away" not in ent["names"]:
+                continue
+            events[e["id"]] = ent
+    if total > 1:
+        print()
+    total_e = len(events)
     rows = []
-    for eid, ev in events.items():
+    for i, (eid, ev) in enumerate(events.items(), 1):
+        if total_e > 1 and (i % 20 == 0 or i == total_e):
+            print(f"\r  CDB detalhe: {i}/{total_e}", end="", flush=True)
         try:
             s = json.loads(ov.fetch(f"https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event={eid}",
                                     timeout=20))
@@ -248,7 +296,16 @@ def espn_cup_history(data_dir, refresh):
             "o_h": None, "o_d": None, "o_a": None, "o_lines": {},
             "over": None, "under": None,
         })
-    rows.sort(key=lambda m: (m["date"], m["home"]))
+    if total_e > 1:
+        print()
+    for r in rows:
+        r["date"] = dt.date.fromisoformat(r["date"])
+    uniq = {}
+    for m in keep + rows:
+        uniq[(m["date"], m["home"], m["away"])] = m
+    rows = sorted(uniq.values(), key=lambda m: (m["date"], m["home"]))
+    for m in rows:
+        m["date"] = m["date"].isoformat()
     cache.write_text(json.dumps(rows, ensure_ascii=False))
     out = []
     for r in rows:
@@ -868,7 +925,8 @@ def fmt_br(iso):
 def main():
     ap = argparse.ArgumentParser(description="Análise 1X2, Over/Under gols e escanteios")
     ap.add_argument("--data-dir", default="data")
-    ap.add_argument("--refresh", action="store_true")
+    ap.add_argument("--refresh", nargs="?", const="all", default="",
+                    help="Força atualização: all | csv | cdb | corners | fixtures (ou combinação csv,cdb)")
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--no-espn-corners", action="store_true")
     ap.add_argument("--out", default="front/analise.json")
@@ -877,11 +935,13 @@ def main():
     data_dir = Path(args.data_dir)
     data_dir.mkdir(exist_ok=True)
 
+    refresh = ov.parse_refresh(args.refresh)
+
     print("== Carregando histórico ==")
-    rows_all = load_rows(data_dir, args.refresh)
+    rows_all = load_rows(data_dir, refresh)
     if "BRA" in rows_all and not args.no_espn_corners:
         print("  Buscando escanteios do Brasileirão na ESPN (1ª vez demora)...")
-        evs = espn_bra_corners(data_dir, args.refresh)
+        evs = espn_bra_corners(data_dir, "corners" in refresh)
         n = merge_bra_corners(rows_all["BRA"], evs)
         print(f"  {n} jogos do Brasileirão 2026 com escanteios")
 
@@ -981,7 +1041,7 @@ def main():
             sdates.setdefault(m["season"], []).append(m["date"])
         last_season = max(sdates, key=lambda s: max(sdates[s]))
         last_max = max(sdates[last_season])
-        for f in ov.espn_fixtures(lg, args.days, data_dir, args.refresh):
+        for f in ov.espn_fixtures(lg, args.days, data_dir, "fixtures" in refresh):
             home = ov.map_team(f["home"], hist_names, norm_names, name_by_norm)
             away = ov.map_team(f["away"], hist_names, norm_names, name_by_norm)
             if not home or not away:

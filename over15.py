@@ -6,6 +6,7 @@ import difflib
 import json
 import math
 import re
+import time
 import unicodedata
 import urllib.request
 from pathlib import Path
@@ -146,15 +147,41 @@ MAPA_BRA_CDB = {
 
 
 def fetch(url, timeout=30):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8", errors="replace")
+    last = None
+    for t in (1, 3, 8):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read().decode("utf-8", errors="replace")
+        except Exception as e:
+            last = e
+            if t > 1:
+                time.sleep(t)
+    raise last
+
+
+def parse_refresh(value):
+    if not value:
+        return set()
+    if value == "all":
+        return {"csv", "cdb", "corners", "fixtures"}
+    return {x.strip().lower() for x in value.split(",") if x.strip()}
 
 
 def download_csv(url, data_dir, name, refresh):
     path = data_dir / name
-    if path.exists() and not refresh:
-        return path
+    now = dt.datetime.now().timestamp()
+    if path.exists():
+        if refresh:
+            pass
+        else:
+            age = (now - path.stat().st_mtime) / 86400
+            y = dt.date.today().year
+            eu_cur = f"{str(y - 1)[2:]}{str(y)[2:]}"
+            is_current = name.startswith("BRA") or eu_cur in name or str(y) in name
+            stale = 2 if is_current else 30
+            if age < stale:
+                return path
     try:
         body = fetch(url)
     except Exception as e:
@@ -496,7 +523,8 @@ def fmt_dt(iso):
 def main():
     ap = argparse.ArgumentParser(description="Filtro Over 1.5 gols - Brasil + Top5 europeias")
     ap.add_argument("--data-dir", default="data")
-    ap.add_argument("--refresh", action="store_true")
+    ap.add_argument("--refresh", nargs="?", const="all", default="",
+                    help="Força atualização: all | csv (ou combinação csv,fixtures)")
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--target", type=float, default=0.75)
     ap.add_argument("--min-n", type=int, default=50)
@@ -507,8 +535,10 @@ def main():
     data_dir = Path(args.data_dir)
     data_dir.mkdir(exist_ok=True)
 
+    refresh = parse_refresh(args.refresh)
+
     print("== Baixando histórico (football-data.co.uk) ...")
-    hist = load_history(data_dir, args.refresh)
+    hist = load_history(data_dir, "csv" in refresh)
 
     print("\n== Backtest walk-forward ==")
     tune_items, valid_items = [], []
@@ -601,7 +631,7 @@ def main():
         state = LeagueState()
         for m in rows:
             state.advance(m)
-        for f in espn_fixtures(lg, args.days, data_dir, args.refresh):
+        for f in espn_fixtures(lg, args.days, data_dir, "fixtures" in refresh):
             home = map_team(f["home"], hist_names, norm_names, name_by_norm)
             away = map_team(f["away"], hist_names, norm_names, name_by_norm)
             if not home or not away:
