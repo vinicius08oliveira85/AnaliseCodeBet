@@ -15,6 +15,17 @@ ESC_LINHAS = [7.5, 8.5, 9.5, 10.5, 11.5, 12.5]
 RHO_MIN, RHO_MAX, RHO_STEP = -0.30, 0.05, 0.01
 GAMMA = 0.985
 PRIOR = 5.0
+K_SHRINK = 0.7
+K_DISC = 0.2
+K_MIN_N = 25
+K_RAMP_N = 60
+
+
+def drift_k(ra, rp, n):
+    if n >= K_MIN_N and rp > 0:
+        kraw = ra / rp
+        return 1.0 + K_SHRINK * (kraw - 1.0) * min(1.0, n / K_RAMP_N)
+    return 1.0
 
 
 def _goals(s):
@@ -501,6 +512,34 @@ def line_probs(lam_c, lam_ht, lines_c):
     return e, h
 
 
+def league_drift(rows, w_sot):
+    run = {}
+    prev = None
+    last_s = None
+    state = State()
+    by_day = {}
+    for m in rows:
+        by_day.setdefault(m["date"], []).append(m)
+    for d in sorted(by_day):
+        ms = by_day[d]
+        for m in ms:
+            if last_s is not None and m["season"] != last_s:
+                p = run.get(last_s, (0.0, 0.0, 0))
+                prev = (p[0] * K_DISC, p[1] * K_DISC, p[2] * K_DISC)
+            last_s = m["season"]
+            r = state.lambdas(m["home"], m["away"])
+            if r is not None:
+                lam_h, lam_a = r["lam_h"], r["lam_a"]
+                if w_sot > 0 and r["lam_s"] is not None:
+                    lam_h = w_sot * r["lam_s"][0] + (1 - w_sot) * lam_h
+                    lam_a = w_sot * r["lam_s"][1] + (1 - w_sot) * lam_a
+                ra, rp, n = run.get(m["season"], (0.0, 0.0, 0))
+                run[m["season"]] = (ra + m["hg"] + m["ag"], rp + lam_h + lam_a, n + 1)
+        for m in ms:
+            state.advance(m)
+    return run
+
+
 def backtest_all(rows, tune_season, rho, w_sot=0.0):
     out = []
     state = State()
@@ -514,10 +553,17 @@ def backtest_all(rows, tune_season, rho, w_sot=0.0):
     by_day = {}
     for m in rows:
         by_day.setdefault(m["date"], []).append(m)
+    run = {}
+    prev = None
+    last_s = None
     for d in sorted(by_day):
         ms = by_day[d]
         if d >= tune_start:
             for m in ms:
+                if last_s is not None and m["season"] != last_s:
+                    p = run.get(last_s, (0.0, 0.0, 0))
+                    prev = (p[0] * K_DISC, p[1] * K_DISC, p[2] * K_DISC)
+                last_s = m["season"]
                 r = state.lambdas(m["home"], m["away"])
                 if r is None:
                     continue
@@ -525,6 +571,12 @@ def backtest_all(rows, tune_season, rho, w_sot=0.0):
                 if w_sot > 0 and r["lam_s"] is not None:
                     lam_h = w_sot * r["lam_s"][0] + (1 - w_sot) * lam_h
                     lam_a = w_sot * r["lam_s"][1] + (1 - w_sot) * lam_a
+                raw_tot = lam_h + lam_a
+                s = m["season"]
+                seed = prev if prev else (0.0, 0.0, 0)
+                ra, rp, n = run.get(s, seed)
+                k = drift_k(ra, rp, n)
+                lam_h, lam_a = lam_h * k, lam_a * k
                 rec = {"season": m["season"], "date": d, "hit": m["hg"] + m["ag"] > 1.5,
                        "hg": m["hg"], "ag": m["ag"],
                        "hhg": m["hhg"], "hag": m["hag"], "hc": m["hc"], "ac": m["ac"],
@@ -537,6 +589,7 @@ def backtest_all(rows, tune_season, rho, w_sot=0.0):
                 rec["esc"] = e
                 rec["ht"] = h
                 out.append(rec)
+                run[s] = (ra + m["hg"] + m["ag"], rp + raw_tot, n + 1)
         for m in ms:
             state.advance(m)
     return out
@@ -717,7 +770,7 @@ def main():
     ap = argparse.ArgumentParser(description="Análise 1X2, Over/Under gols e escanteios")
     ap.add_argument("--data-dir", default="data")
     ap.add_argument("--refresh", action="store_true")
-    ap.add_argument("--days", type=int, default=7)
+    ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--no-espn-corners", action="store_true")
     ap.add_argument("--out", default="front/analise.json")
     args = ap.parse_args()
@@ -815,6 +868,12 @@ def main():
         for m in rows:
             state.advance(m)
         rho = rho_map[lg["key"]]
+        run_drift = league_drift(rows, best_w)
+        sdates = {}
+        for m in rows:
+            sdates.setdefault(m["season"], []).append(m["date"])
+        last_season = max(sdates, key=lambda s: max(sdates[s]))
+        last_max = max(sdates[last_season])
         for f in ov.espn_fixtures(lg, args.days, data_dir, args.refresh):
             home = ov.map_team(f["home"], hist_names, norm_names, name_by_norm)
             away = ov.map_team(f["away"], hist_names, norm_names, name_by_norm)
@@ -828,6 +887,14 @@ def main():
             if best_w > 0 and r["lam_s"] is not None:
                 lam_h = best_w * r["lam_s"][0] + (1 - best_w) * lam_h
                 lam_a = best_w * r["lam_s"][1] + (1 - best_w) * lam_a
+            fdate = dt.date.fromisoformat(f["date"][:10])
+            if fdate <= last_max + dt.timedelta(days=45):
+                ra, rp, n = run_drift.get(last_season, (0.0, 0.0, 0))
+            else:
+                p = run_drift.get(last_season, (0.0, 0.0, 0))
+                ra, rp, n = p[0] * K_DISC, p[1] * K_DISC, p[2] * K_DISC
+            k = drift_k(ra, rp, n)
+            lam_h, lam_a = lam_h * k, lam_a * k
             jm = joint_metrics(lam_h, lam_a, rho)
             e, h = line_probs(r["lam_c"], r["lam_ht"], ESC_LINHAS)
             jogos.append({
