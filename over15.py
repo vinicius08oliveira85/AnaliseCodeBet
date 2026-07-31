@@ -26,7 +26,8 @@ BR_SEASONS = ["2023", "2024", "2025", "2026"]
 CDB_SEASONS = ["2024", "2025", "2026"]
 TUNE_SEASON = {"BRA": "2025", "CDB": "2025"}
 MIN_MATCHES = 4
-SEASON_BLEND = 0.5
+GAMMA = 0.90
+PRIOR = 5.0
 
 ALIASES = {
     "man city": "Man City", "manchester city": "Man City", "man utd": "Man United",
@@ -262,6 +263,7 @@ class LeagueState:
     def __init__(self):
         self.base_h = 0.0
         self.base_a = 0.0
+        self.base_w = 0
         self.base_n = 0
         self.teams = {}
 
@@ -269,48 +271,55 @@ class LeagueState:
         t = self.teams.get(team)
         if t is None:
             t = self.teams[team] = {
-                "home": {"cur_seas": None, "cur_n": 0, "cur_gf": 0.0, "cur_ga": 0.0,
-                         "prev_n": 0, "prev_gf": 0.0, "prev_ga": 0.0},
-                "away": {"cur_seas": None, "cur_n": 0, "cur_gf": 0.0, "cur_ga": 0.0,
-                         "prev_n": 0, "prev_gf": 0.0, "prev_ga": 0.0},
+                "home": {"s": 0.0, "c": 0.0, "w": 0.0, "n": 0},
+                "away": {"s": 0.0, "c": 0.0, "w": 0.0, "n": 0},
             }
         return t[role]
 
     def advance(self, m):
+        g = GAMMA
+        self.base_h *= g
+        self.base_a *= g
+        self.base_w *= g
         self.base_h += m["hg"]
         self.base_a += m["ag"]
+        self.base_w += 1
         self.base_n += 1
         for role, name, scored, conceded in (
                 ("home", m["home"], m["hg"], m["ag"]),
                 ("away", m["away"], m["ag"], m["hg"])):
             b = self._bucket(name, role)
-            if b["cur_seas"] is not None and b["cur_seas"] != m["season"]:
-                b["prev_n"] += b["cur_n"]
-                b["prev_gf"] += b["cur_gf"]
-                b["prev_ga"] += b["cur_ga"]
-                b["cur_n"] = 0
-                b["cur_gf"] = 0.0
-                b["cur_ga"] = 0.0
-            b["cur_seas"] = m["season"]
-            b["cur_n"] += 1
-            b["cur_gf"] += scored
-            b["cur_ga"] += conceded
+            b["s"] *= g
+            b["c"] *= g
+            b["w"] *= g
+            b["s"] += scored
+            b["c"] += conceded
+            b["w"] += 1
+            b["n"] += 1
 
     def team_stats(self, team, role):
         b = self._bucket(team, role)
-        raw_n = b["cur_n"] + b["prev_n"]
-        if raw_n < MIN_MATCHES:
+        if b["n"] < MIN_MATCHES:
             return None
-        n = b["cur_n"] + SEASON_BLEND * b["prev_n"]
-        gf = (b["cur_gf"] + SEASON_BLEND * b["prev_gf"]) / n
-        ga = (b["cur_ga"] + SEASON_BLEND * b["prev_ga"]) / n
-        return {"gf": gf, "ga": ga, "n": raw_n}
+        if role == "home":
+            base_s = self.base_h / self.base_w if self.base_w else 0.0
+            base_c = self.base_a / self.base_w if self.base_w else 0.0
+        else:
+            base_s = self.base_a / self.base_w if self.base_w else 0.0
+            base_c = self.base_h / self.base_w if self.base_w else 0.0
+        if PRIOR > 0:
+            gf = (b["s"] + PRIOR * base_s) / (b["w"] + PRIOR)
+            ga = (b["c"] + PRIOR * base_c) / (b["w"] + PRIOR)
+        else:
+            gf = b["s"] / b["w"]
+            ga = b["c"] / b["w"]
+        return {"gf": gf, "ga": ga, "n": b["n"]}
 
     def prob_over15(self, home, away):
         if self.base_n == 0:
             return None
-        base_h = self.base_h / self.base_n
-        base_a = self.base_a / self.base_n
+        base_h = self.base_h / self.base_w if self.base_w else 0.0
+        base_a = self.base_a / self.base_w if self.base_w else 0.0
         sh = self.team_stats(home, "home")
         sa = self.team_stats(away, "away")
         gh = self.team_stats(home, "away")

@@ -13,7 +13,7 @@ GOL_LINHAS = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5]
 HT_LINHAS = [0.5, 1.5, 2.5, 3.5]
 ESC_LINHAS = [7.5, 8.5, 9.5, 10.5, 11.5, 12.5]
 RHO_MIN, RHO_MAX, RHO_STEP = -0.30, 0.05, 0.01
-GAMMA = 0.985
+GAMMA = 0.90
 PRIOR = 5.0
 K_SHRINK = 0.7
 K_DISC = 0.2
@@ -356,7 +356,8 @@ def merge_bra_corners(rows, events):
 
 
 class State:
-    def __init__(self):
+    def __init__(self, gamma=None):
+        self.gamma = gamma if gamma is not None else GAMMA
         self.g_h = self.g_a = 0.0
         self.g_w = self.g_n = 0
         self.hh_h = self.hh_a = 0.0
@@ -378,36 +379,37 @@ class State:
         return b
 
     def advance(self, m):
+        g = self.gamma
         has_c = m["hc"] is not None and m["ac"] is not None
         has_ht = m["hhg"] is not None and m["hag"] is not None
         has_sot = m["hst"] is not None and m["ast"] is not None
-        self.g_h *= GAMMA
-        self.g_a *= GAMMA
-        self.g_w *= GAMMA
+        self.g_h *= g
+        self.g_a *= g
+        self.g_w *= g
         self.g_h += m["hg"]
         self.g_a += m["ag"]
         self.g_w += 1
         self.g_n += 1
         if has_sot:
-            self.s_h *= GAMMA
-            self.s_a *= GAMMA
-            self.s_w *= GAMMA
+            self.s_h *= g
+            self.s_a *= g
+            self.s_w *= g
             self.s_h += m["hst"]
             self.s_a += m["ast"]
             self.s_w += 1
             self.s_n += 1
         if has_ht:
-            self.hh_h *= GAMMA
-            self.hh_a *= GAMMA
-            self.hh_w *= GAMMA
+            self.hh_h *= g
+            self.hh_a *= g
+            self.hh_w *= g
             self.hh_h += m["hhg"]
             self.hh_a += m["hag"]
             self.hh_w += 1
             self.hh_n += 1
         if has_c:
-            self.c_h *= GAMMA
-            self.c_a *= GAMMA
-            self.c_w *= GAMMA
+            self.c_h *= g
+            self.c_a *= g
+            self.c_w *= g
             self.c_h += m["hc"]
             self.c_a += m["ac"]
             self.c_w += 1
@@ -416,36 +418,36 @@ class State:
                 ("home", m["home"], m["hg"], m["ag"], m["hhg"], m["hag"], m["hst"], m["ast"]),
                 ("away", m["away"], m["ag"], m["hg"], m["hag"], m["hhg"], m["ast"], m["hst"])):
             b = self._bk(name, role, "g")
-            b["s"] *= GAMMA
-            b["c"] *= GAMMA
-            b["w"] *= GAMMA
+            b["s"] *= g
+            b["c"] *= g
+            b["w"] *= g
             b["s"] += gs
             b["c"] += gc
             b["w"] += 1
             b["n"] += 1
             if has_ht:
                 hb = self._bk(name, role, "h")
-                hb["s"] *= GAMMA
-                hb["c"] *= GAMMA
-                hb["w"] *= GAMMA
+                hb["s"] *= g
+                hb["c"] *= g
+                hb["w"] *= g
                 hb["s"] += hs
                 hb["c"] += hc_
                 hb["w"] += 1
                 hb["n"] += 1
             if has_sot:
                 sb = self._bk(name, role, "s")
-                sb["s"] *= GAMMA
-                sb["c"] *= GAMMA
-                sb["w"] *= GAMMA
+                sb["s"] *= g
+                sb["c"] *= g
+                sb["w"] *= g
                 sb["s"] += ss
                 sb["c"] += sc_
                 sb["w"] += 1
                 sb["n"] += 1
             if has_c:
                 cb = self._bk(name, role, "c")
-                cb["s"] *= GAMMA
-                cb["c"] *= GAMMA
-                cb["w"] *= GAMMA
+                cb["s"] *= g
+                cb["c"] *= g
+                cb["w"] *= g
                 if role == "home":
                     cb["s"] += m["hc"]
                     cb["c"] += m["ac"]
