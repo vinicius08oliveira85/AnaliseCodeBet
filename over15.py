@@ -118,6 +118,32 @@ def norm(s):
 
 ALIASES_NORM = {norm(k): v for k, v in ALIASES.items()}
 
+MAPA_BRA_CDB = {
+    "America MG": "América Mineiro",
+    "Atletico GO": "Atlético Goianiense",
+    "Atletico-MG": "Atlético-MG",
+    "Avai": "Avaí",
+    "Botafogo RJ": "Botafogo",
+    "Bragantino": "Red Bull Bragantino",
+    "Ceara": "Ceará",
+    "Chapecoense-SC": "Chapecoense",
+    "Criciuma": "Criciúma",
+    "Cuiaba": "Cuiabá",
+    "Flamengo RJ": "Flamengo",
+    "Goias": "Goiás",
+    "Gremio": "Grêmio",
+    "Sao Paulo": "São Paulo",
+    "Sport Recife": "Sport",
+    "Vasco": "Vasco da Gama",
+    "Vitoria": "Vitória",
+    "Nautico": "Náutico",
+    "Figueirense": "Figueirense",
+    "Joinville": "Joinville",
+    "Ponte Preta": "Ponte Preta",
+    "Portuguesa": "Portuguesa",
+    "Santa Cruz": "Santa Cruz",
+}
+
 
 def fetch(url, timeout=30):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})

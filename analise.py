@@ -964,6 +964,14 @@ def main():
         norm_names = sorted({ov.norm(h) for h in hist_names})
         name_by_norm = {ov.norm(h): h for h in hist_names}
         state = State()
+        if lg["key"] == "CDB":
+            cdb_names = {ov.norm(h) for h in hist_names}
+            bra_rows = rows_all.get("BRA", [])
+            for bm in sorted(bra_rows, key=lambda x: (x["date"], x["home"])):
+                home = ov.MAPA_BRA_CDB.get(bm["home"], bm["home"])
+                away = ov.MAPA_BRA_CDB.get(bm["away"], bm["away"])
+                if ov.norm(home) in cdb_names and ov.norm(away) in cdb_names:
+                    state.advance({**bm, "home": home, "away": away})
         for m in rows:
             state.advance(m)
         rho = rho_map[lg["key"]]
