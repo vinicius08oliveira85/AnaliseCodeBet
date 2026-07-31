@@ -128,6 +128,22 @@ def espn_bra_corners(data_dir, refresh):
             ac = corners.get(ev["away"])
             if hc is not None and ac is not None:
                 ev["hc"], ev["ac"] = hc, ac
+        hdr = (s.get("header") or {}).get("competitions", [{}])[0]
+        ht = {}
+        for c in hdr.get("competitors", []):
+            name = (c.get("team") or {}).get("displayName", "")
+            ls = c.get("linescores") or []
+            if ls and ls[0].get("displayValue") is not None:
+                try:
+                    ht[name] = int(ls[0]["displayValue"])
+                except (TypeError, ValueError):
+                    pass
+        if len(ht) == 2:
+            ev = events[eid]
+            hhg = ht.get(ev["home"])
+            hag = ht.get(ev["away"])
+            if hhg is not None and hag is not None:
+                ev["hhg"], ev["hag"] = hhg, hag
     cache.write_text(json.dumps(events, ensure_ascii=False))
     return events
 
@@ -141,7 +157,7 @@ def merge_bra_corners(rows, events):
     name_by_norm = {ov.norm(h): h for h in hist_names}
     by_name = {}
     for ev in events.values():
-        if "hc" not in ev:
+        if "hc" not in ev and "hhg" not in ev:
             continue
         try:
             d = dt.datetime.fromisoformat(ev["date"].replace("Z", "+00:00")).date()
@@ -151,7 +167,8 @@ def merge_bra_corners(rows, events):
         aa = ov.map_team(ev["away"] or "", hist_names, norm_names, name_by_norm)
         if not hh or not aa:
             continue
-        by_name.setdefault((ov.norm(hh), ov.norm(aa)), []).append((d, ev["hc"], ev["ac"]))
+        by_name.setdefault((ov.norm(hh), ov.norm(aa)), []).append(
+            (d, ev.get("hc"), ev.get("ac"), ev.get("hhg"), ev.get("hag")))
     cur_season = str(dt.date.today().year)
     n = 0
     for m in rows:
@@ -160,9 +177,12 @@ def merge_bra_corners(rows, events):
         cands = by_name.get((ov.norm(m["home"]), ov.norm(m["away"])))
         if not cands:
             continue
-        for d, hc, ac in cands:
+        for d, hc, ac, hhg, hag in cands:
             if abs((m["date"] - d).days) <= 1:
-                m["hc"], m["ac"] = hc, ac
+                if hc is not None and ac is not None:
+                    m["hc"], m["ac"] = hc, ac
+                if hhg is not None and hag is not None:
+                    m["hhg"], m["hag"] = hhg, hag
                 n += 1
                 break
     return n
@@ -586,6 +606,8 @@ def validacao(items, market, min_n=30):
         sel = [x for x in items if x[prefix][side][li] >= thr]
         if prefix == "esc":
             sel = [x for x in sel if x["hc"] is not None and x["ac"] is not None]
+        elif prefix == "ht":
+            sel = [x for x in sel if x["hhg"] is not None and x["hag"] is not None]
         if len(sel) < min_n:
             continue
         if prefix == "gols":
