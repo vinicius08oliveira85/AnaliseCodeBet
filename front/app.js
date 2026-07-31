@@ -72,32 +72,40 @@ function removePick(id) {
 function nomeMercado(tipo, li) {
   if (tipo === 'x12') return ['Casa', 'Empate', 'Fora'][li];
   const s = tipo.split('_');
-  return (s[0] === 'esc' ? 'Esc ' : s[0] === 'ht' ? 'HT ' : '') + (s[1] === 'over' ? 'O ' : 'U ') + li;
+  const lado = s[1] === 'over' ? 'mais de' : 'menos de';
+  const mkt = s[0] === 'esc' ? 'escanteios' : s[0] === 'ht' ? 'gols no primeiro tempo' : 'gols';
+  return lado + ' ' + li + ' ' + mkt;
 }
 
-function button(j, tipo, li, p, small, top) {
+function curto(tipo, li) {
+  if (tipo === 'x12') return ['Casa', 'Empate', 'Fora'][li];
+  const s = tipo.split('_');
+  return (s[1] === 'over' ? 'Mais de ' : 'Menos de ') + li;
+}
+
+function button(j, tipo, li, p, label, top) {
   return `<button class="pick ${pickSeq[pickId(j, tipo, li)] ? 'sel' : ''} ${top ? 'top' : ''}"
     onclick="addPick(${j},'${tipo}',${li},${p.toFixed(6)},'${nomeMercado(tipo, li)}')">
-    ${small}${top ? ' <span class="star">✦</span>' : ''}<small>${pct(p)}</small></button>`;
+    <span class="mk">${label}${top ? ' <span class="star">✦</span>' : ''}</span><small>${pct(p)}</small></button>`;
 }
 
 function renderStats() {
   const v = data.validacao;
   const cal = data.cal || {};
   const cards = [
-    ['1X2 (P≥0.75)', v.x12['0.75'], ''],
-    ['1X2 + odds', cal.x12 && cal.x12.taxa ? { taxa: cal.x12.taxa, n: cal.x12.n } : null, 'cal'],
-    ['Gols O 1.5', v.gols_over['1.5'], ''],
-    ['Gols U 5.5', v.gols_under['5.5'], ''],
-    ['Gols HT O 0.5', v.ht_over['0.5'], ''],
-    ['Gols HT U 2.5', v.ht_under['2.5'], ''],
-    ['Esc O 7.5', v.esc_over['7.5'], ''],
-    ['Esc U 12.5', v.esc_under['12.5'], ''],
+    ['Resultado (probabilidade ≥ 75%)', v.x12['0.75'], ''],
+    ['Resultado + odds', cal.x12 && cal.x12.taxa ? { taxa: cal.x12.taxa, n: cal.x12.n } : null, 'cal'],
+    ['Gols: mais de 1.5', v.gols_over['1.5'], ''],
+    ['Gols: menos de 5.5', v.gols_under['5.5'], ''],
+    ['Primeiro tempo: mais de 0.5', v.ht_over['0.5'], ''],
+    ['Primeiro tempo: menos de 2.5', v.ht_under['2.5'], ''],
+    ['Escanteios: mais de 7.5', v.esc_over['7.5'], ''],
+    ['Escanteios: menos de 12.5', v.esc_under['12.5'], ''],
   ];
   document.getElementById('stats').innerHTML = cards.map(([l, e, extra]) => {
     if (!e) return `<div class="stat"><div class="l">${l}</div><div class="v">—</div></div>`;
     return `<div class="stat ${clsP(e.taxa)} ${extra}">
-      <div class="l">${l}</div><div class="v">${pct(e.taxa)}</div><div class="n">n=${e.n}</div></div>`;
+      <div class="l">${l}</div><div class="v">${pct(e.taxa)}</div><div class="n">amostra: ${e.n}</div></div>`;
   }).join('');
 }
 
@@ -114,24 +122,24 @@ function renderJogos() {
       .map(([li, side]) => {
         const tipo = mkts + '_' + side;
         const p = pv(j, tipo, li);
-        return { li, tipo, p, label: (mkts === 'esc' ? 'Esc ' : mkts === 'ht' ? 'HT ' : '') + (side === 'over' ? 'O ' : 'U ') + li };
+        return { li, tipo, p };
       });
 
     const x12 = [0, 1, 2].map(li => {
       const p = pv(j, 'x12', li);
-      return button(j, 'x12', li, p, ['1', 'X', '2'][li], false);
+      return button(j, 'x12', li, p, ['Casa', 'Empate', 'Fora'][li], false);
     }).join('');
 
     const gols = rec(REC_GOLS, 'gols');
     const gTop = Math.max(...gols.map(g => g.p));
-    const golsB = gols.map(g => button(j, g.tipo, g.li, g.p, g.label.replace('Gols ', '') || g.label, g.p === gTop)).join('');
+    const golsB = gols.map(g => button(j, g.tipo, g.li, g.p, curto(g.tipo, g.li), g.p === gTop)).join('');
 
     const htDisp = (pr.ht_over || []).length;
     const ht = htDisp ? rec(REC_HT, 'ht') : null;
     let htB = null;
     if (ht) {
       const tTop = Math.max(...ht.map(g => g.p));
-      htB = ht.map(g => button(j, g.tipo, g.li, g.p, g.label.replace('HT ', ''), g.p === tTop)).join('');
+      htB = ht.map(g => button(j, g.tipo, g.li, g.p, curto(g.tipo, g.li), g.p === tTop)).join('');
     }
 
     const escDisp = (pr.esc_over || []).length;
@@ -139,31 +147,31 @@ function renderJogos() {
     let escB = null;
     if (escRec) {
       const eTop = Math.max(...escRec.map(g => g.p));
-      escB = escRec.map(g => button(j, g.tipo, g.li, g.p, g.label.replace('Esc ', ''), g.p === eTop)).join('');
+      escB = escRec.map(g => button(j, g.tipo, g.li, g.p, curto(g.tipo, g.li), g.p === eTop)).join('');
     }
 
-    const full = `<details><summary>todas as linhas (${pr.gols_over.length + (pr.ht_over ? pr.ht_over.length : 0) + escDisp} mercados)</summary>
+    const full = `<details><summary>Ver todas as linhas (${pr.gols_over.length + (pr.ht_over ? pr.ht_over.length : 0) + escDisp} mercados)</summary>
       <div class="full">
         ${LINHAS_GOLS.map((l, li) => `<div><div class="lbl">Gols ${l}</div>
-          ${button(j, 'gols_over', l, pv(j, 'gols_over', l), 'O', false)}
-          ${button(j, 'gols_under', l, pv(j, 'gols_under', l), 'U', false)}</div>`).join('')}
-        ${htDisp ? LINHAS_HT.map((l, li) => `<div><div class="lbl">HT ${l}</div>
-          ${button(j, 'ht_over', l, pv(j, 'ht_over', l), 'O', false)}
-          ${button(j, 'ht_under', l, pv(j, 'ht_under', l), 'U', false)}</div>`).join('') : ''}
-        ${escDisp ? LINHAS_ESC.map((l, li) => `<div><div class="lbl">Esc ${l}</div>
-          ${button(j, 'esc_over', l, pv(j, 'esc_over', l), 'O', false)}
-          ${button(j, 'esc_under', l, pv(j, 'esc_under', l), 'U', false)}</div>`).join('') : ''}
+          ${button(j, 'gols_over', l, pv(j, 'gols_over', l), 'Mais de ' + l, false)}
+          ${button(j, 'gols_under', l, pv(j, 'gols_under', l), 'Menos de ' + l, false)}</div>`).join('')}
+        ${htDisp ? LINHAS_HT.map((l, li) => `<div><div class="lbl">Primeiro tempo ${l}</div>
+          ${button(j, 'ht_over', l, pv(j, 'ht_over', l), 'Mais de ' + l, false)}
+          ${button(j, 'ht_under', l, pv(j, 'ht_under', l), 'Menos de ' + l, false)}</div>`).join('') : ''}
+        ${escDisp ? LINHAS_ESC.map((l, li) => `<div><div class="lbl">Escanteios ${l}</div>
+          ${button(j, 'esc_over', l, pv(j, 'esc_over', l), 'Mais de ' + l, false)}
+          ${button(j, 'esc_under', l, pv(j, 'esc_under', l), 'Menos de ' + l, false)}</div>`).join('') : ''}
       </div></details>`;
 
     return `<div class="card mc">
       <div class="mc-head">${esc(g.casa)} <span class="vs">x</span> ${esc(g.fora)}
         <span class="badge ${g.dados === 'completo' ? 'ok' : 'med'}">${g.dados}</span></div>
       <div class="mc-meta"><span>${esc(g.liga)}</span><span>${g.hora_br}</span>
-        <span>⚽ ${g.lam} gols esperados</span>${g.lam_esc ? `<span>🟨 ${g.lam_esc} esc. esperados</span>` : ''}</div>
-      ${mktRow(j, '1X2', x12)}
+        <span>⚽ ${g.lam} gols esperados</span>${g.lam_esc ? `<span>🟨 ${g.lam_esc} escanteios esperados</span>` : ''}</div>
+      ${mktRow(j, 'Resultado', x12)}
       ${mktRow(j, 'Gols', golsB)}
-      ${mktRow(j, 'HT', htB)}
-      ${mktRow(j, 'Esc', escB)}
+      ${mktRow(j, 'Primeiro tempo', htB)}
+      ${mktRow(j, 'Escanteios', escB)}
       ${full}
     </div>`;
   }).join('');
@@ -187,11 +195,11 @@ function renderCombo() {
   const badge = eTot >= 0.75 ? 'ok' : eTot >= 0.6 ? 'med' : 'bad';
   el.innerHTML = items + `
     <div class="totais">
-      <div>P modelada: <b class="p ${clsP(pTot)}">${pct(pTot)}</b></div>
-      <div>Expectativa: <b class="p ${clsP(eTot)}">${pct(eTot)}</b>
-        <span class="badge big ${badge}">${eTot >= 0.75 ? '≥75% OK' : eTot >= 0.6 ? 'risco' : 'ruim'}</span></div>
+      <div>Probabilidade do modelo: <b class="p ${clsP(pTot)}">${pct(pTot)}</b></div>
+      <div>Expectativa pela validação: <b class="p ${clsP(eTot)}">${pct(eTot)}</b>
+        <span class="badge big ${badge}">${eTot >= 0.75 ? '≥75% bom' : eTot >= 0.6 ? 'risco' : 'ruim'}</span></div>
     </div>
-    <div style="margin-top:10px"><button class="btn" onclick="limparPicks()">Limpar combinação</button></div>`;
+    <div style="margin-top:8px"><button class="btn" onclick="limparPicks()">Limpar combinação</button></div>`;
 }
 
 function limparPicks() {
@@ -261,7 +269,7 @@ function autoCombos() {
     return;
   }
   el.innerHTML = '<ul class="auto">' + uniq.map((c, k) =>
-    `<li><b>Combo ${k + 1}</b> — expectativa ${pct(c.eTot)} · P modelada ${pct(c.pTot)}
+    `<li><b>Combo ${k + 1}</b> — expectativa ${pct(c.eTot)} · probabilidade do modelo ${pct(c.pTot)}
       <button class="usar" onclick="aplicarAuto(${k})">usar</button>
       <div class="d">${c.ms.map(m => esc(m.g.casa) + ' x ' + esc(m.g.fora) + ' → ' + m.best.nome).join(' · ')}</div></li>`
   ).join('') + '</ul>';
@@ -323,9 +331,9 @@ fetch('analise.json')
     const gerado = new Date(d.gerado_em).toLocaleString('pt-BR',
       { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     document.getElementById('sub').textContent =
-      'Gerado em ' + gerado + ' · ' + q + ' jogos · w_sot=' + d.w_sot;
-    document.getElementById('meta1').textContent = '· fora de amostra (P≥0.75/0.85)';
-    document.getElementById('meta2').textContent = '· clique nos palpites (✦ = melhor P do mercado)';
+      'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot;
+    document.getElementById('meta1').textContent = '· validação fora de amostra';
+    document.getElementById('meta2').textContent = '· clique para selecionar (✦ = maior chance do mercado)';
     if (d.cal && d.cal.x12) {
       document.getElementById('w12').textContent = d.cal.x12.w.toFixed(2);
       document.getElementById('w25').textContent =
