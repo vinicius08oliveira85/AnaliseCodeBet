@@ -42,9 +42,10 @@ function setFiltro(key) {
 function taxaPick(tipo, linha, p) {
   const v = data.validacao[tipo];
   if (!v) return p;
-  if (tipo === 'x12') {
-    const thrs = Object.keys(v).map(Number).sort((a, b) => b - a);
-    for (const t of thrs) if (p >= t) return v[t].taxa;
+  if (tipo === 'x12' || tipo === 'dc') {
+    const tbl = tipo === 'dc' ? (v[linha] || {}) : v;
+    const thrs = Object.keys(tbl).map(Number).sort((a, b) => b - a);
+    for (const t of thrs) if (p >= t) return tbl[t].taxa;
     return p;
   }
   const e = v[String(linha)];
@@ -93,6 +94,7 @@ function removePick(id) {
 
 function nomeMercado(tipo, li) {
   if (tipo === 'x12') return ['Casa', 'Empate', 'Fora'][li];
+  if (tipo === 'dc') return 'Dupla chance ' + String(li).toUpperCase();
   const s = tipo.split('_');
   const lado = s[1] === 'over' ? 'mais de' : 'menos de';
   const mkt = s[0] === 'esc' ? 'escanteios' : s[0] === 'ht' ? 'gols no primeiro tempo' : 'gols';
@@ -101,6 +103,7 @@ function nomeMercado(tipo, li) {
 
 function curto(tipo, li) {
   if (tipo === 'x12') return ['Casa', 'Empate', 'Fora'][li];
+  if (tipo === 'dc') return String(li).toUpperCase();
   const s = tipo.split('_');
   return (s[1] === 'over' ? 'Mais de ' : 'Menos de ') + li;
 }
@@ -117,6 +120,8 @@ function renderStats() {
   const cards = [
     ['Resultado (probabilidade ≥ 75%)', v.x12['0.75'], ''],
     ['Resultado + odds', cal.x12 && cal.x12.taxa ? { taxa: cal.x12.taxa, n: cal.x12.n } : null, 'cal'],
+    ['Dupla chance 1X (≥ 75%)', v.dc && v.dc['1x'] && v.dc['1x']['0.75'], ''],
+    ['Dupla chance X2 (≥ 75%)', v.dc && v.dc['x2'] && v.dc['x2']['0.75'], ''],
     ['Gols: mais de 1.5', v.gols_over['1.5'], ''],
     ['Gols: menos de 5.5', v.gols_under['5.5'], ''],
     ['Primeiro tempo: mais de 0.5', v.ht_over['0.5'], ''],
@@ -155,6 +160,10 @@ function renderJogos() {
       const p = pv(j, 'x12', li);
       return button(j, 'x12', li, p, ['Casa', 'Empate', 'Fora'][li], false);
     }).join('');
+
+    const px = [pv(j, 'x12', 0), pv(j, 'x12', 1), pv(j, 'x12', 2)];
+    const dc = [['1x', px[0] + px[1]], ['x2', px[1] + px[2]], ['12', px[0] + px[2]]]
+      .map(([li, p]) => button(j, 'dc', li, p, String(li).toUpperCase(), false)).join('');
 
     const gols = rec(REC_GOLS, 'gols');
     const gTop = Math.max(...gols.map(g => g.p));
@@ -195,7 +204,7 @@ function renderJogos() {
         ${calP[j] ? '<span class="badge ok">com odds</span>' : ''}</div>
       <div class="mc-meta"><span>${esc(g.liga)}</span><span>${g.hora_br}</span>
         <span>⚽ ${g.lam} gols esperados</span>${g.lam_esc ? `<span>🟨 ${g.lam_esc} escanteios esperados</span>` : ''}</div>
-      ${mktRow(j, 'Resultado', x12)}
+      ${mktRow(j, 'Resultado', x12 + dc)}
       ${mktRow(j, 'Gols', golsB)}
       ${mktRow(j, 'Primeiro tempo', htB)}
       ${mktRow(j, 'Escanteios', escB)}
@@ -247,6 +256,9 @@ function autoCombos() {
     const px = [pv(i, 'x12', 0), pv(i, 'x12', 1), pv(i, 'x12', 2)];
     const mx = Math.max(...px);
     list.push({ tipo: 'x12', li: px.indexOf(mx), p: mx, nome: ['Casa', 'Empate', 'Fora'][px.indexOf(mx)] });
+    list.push({ tipo: 'dc', li: '1x', p: px[0] + px[1], nome: 'Dupla chance 1X' });
+    list.push({ tipo: 'dc', li: '12', p: px[0] + px[2], nome: 'Dupla chance 12' });
+    list.push({ tipo: 'dc', li: 'x2', p: px[1] + px[2], nome: 'Dupla chance X2' });
     for (const li of [1, 3, 4, 5]) {
       list.push({ tipo: 'gols_over', li: LINHAS_GOLS[li], p: pv(i, 'gols_over', LINHAS_GOLS[li]) });
       list.push({ tipo: 'gols_under', li: LINHAS_GOLS[li], p: pv(i, 'gols_under', LINHAS_GOLS[li]) });

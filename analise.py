@@ -811,7 +811,7 @@ def backtest_all(rows, tune_season, rho, w_sot=0.0):
 
 
 def build_valid(rows_all, rho_map, w_sot):
-    valid = {k: [] for k in ("x12", "gols_over", "gols_under", "ht_over", "ht_under",
+    valid = {k: [] for k in ("x12", "dc", "gols_over", "gols_under", "ht_over", "ht_under",
                              "esc_over", "esc_under")}
     base_tot = {"n": 0, "h": 0}
     for lg in ov.LEAGUES:
@@ -824,7 +824,7 @@ def build_valid(rows_all, rho_map, w_sot):
             if it["season"] == tune_season:
                 continue
             for mkt in valid:
-                if mkt == "x12":
+                if mkt in ("x12", "dc"):
                     valid[mkt].append(it)
                 elif mkt in ("gols_over", "gols_under"):
                     valid[mkt].append(it)
@@ -889,6 +889,29 @@ def validacao(items, market, min_n=30):
         else:
             ok = sum(1 for x in sel if total(x) <= int(l))
         res[f"{l:g}"] = {"n": len(sel), "taxa": ok / len(sel)}
+    return res
+
+
+def validacao_dc(items, min_n=30):
+    res = {}
+    for out, idx in (("1x", (0, 1)), ("x2", (1, 2)), ("12", (0, 2))):
+        tbl = {}
+        for t in (0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95):
+            sel = []
+            for x in items:
+                p = x["ph"] + x["pd"] if out == "1x" else x["pd"] + x["pa"] if out == "x2" else x["ph"] + x["pa"]
+                if p >= t:
+                    sel.append(x)
+            if len(sel) < min_n:
+                continue
+            if out == "1x":
+                ok = sum(1 for x in sel if x["hg"] >= x["ag"])
+            elif out == "x2":
+                ok = sum(1 for x in sel if x["ag"] >= x["hg"])
+            else:
+                ok = sum(1 for x in sel if x["hg"] != x["ag"])
+            tbl[f"{t:g}"] = {"n": len(sel), "taxa": ok / len(sel)}
+        res[out] = tbl
     return res
 
 
@@ -1037,6 +1060,11 @@ def main():
     print("  1X2 (previsão quando P máxima >= X):")
     for t, r in v12.items():
         print(f"    P>={t}: taxa={r['taxa']:.1%} (n={r['n']})")
+    v_dc = validacao_dc(valid["dc"])
+    for out, nome in (("1x", "Dupla 1X"), ("x2", "Dupla X2"), ("12", "Dupla 12")):
+        print(f"  {nome} (previsão quando P >= X):")
+        for t, r in v_dc.get(out, {}).items():
+            print(f"    P>={t}: taxa={r['taxa']:.1%} (n={r['n']})")
     for mkt, nome in (("gols_over", "  Gols Over  (P>=0.85)"), ("gols_under", "  Gols Under (P>=0.85)")):
         print(f" {nome}:")
         for l, r in validacao(valid[mkt], mkt).items():
@@ -1147,6 +1175,7 @@ def main():
         "gerado_em": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "validacao": {
             "x12": v12,
+            "dc": v_dc,
             "gols_over": validacao(valid["gols_over"], "gols_over"),
             "gols_under": validacao(valid["gols_under"], "gols_under"),
             "ht_over": validacao(valid["ht_over"], "ht_over"),
