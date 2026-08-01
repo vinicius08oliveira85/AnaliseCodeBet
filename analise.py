@@ -12,6 +12,8 @@ import over15 as ov
 GOL_LINHAS = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5]
 HT_LINHAS = [0.5, 1.5, 2.5, 3.5]
 ESC_LINHAS = [7.5, 8.5, 9.5, 10.5, 11.5, 12.5]
+CORNER_W = 0.25
+CORNER_BASES_DEFAULT = {7.5: 0.79, 8.5: 0.68, 9.5: 0.56, 10.5: 0.43, 11.5: 0.30, 12.5: 0.22}
 RHO_MIN, RHO_MAX, RHO_STEP = -0.30, 0.05, 0.01
 GAMMA = 0.95
 PRIOR = 2.0
@@ -707,13 +709,29 @@ def estimate_rho(rows, tune_season):
     return best
 
 
-def line_probs(lam_c, lam_ht, lines_c):
+def corner_bases(rows):
+    cnt = 0
+    pairs = []
+    for m in rows:
+        if m.get("hc") is None or m.get("ac") is None:
+            continue
+        cnt += 1
+        pairs.append(m["hc"] + m["ac"])
+    if cnt < 100:
+        return dict(CORNER_BASES_DEFAULT)
+    return {l: sum(1 for t in pairs if t >= int(l) + 1) / cnt for l in ESC_LINHAS}
+
+
+def line_probs(lam_c, lam_ht, lines_c, bases=None):
     e = {"over": [], "under": []}
     if lam_c is not None:
         lamc = lam_c[0] + lam_c[1]
         for l in lines_c:
             k = int(l)
             p_over = 1.0 - cdf_pois(k, lamc)
+            if bases is not None and l in bases:
+                p_over = bases[l] + CORNER_W * (p_over - bases[l])
+                p_over = min(max(p_over, 0.02), 0.98)
             e["over"].append(p_over)
             e["under"].append(1.0 - p_over)
     h = {"over": [], "under": []}
@@ -755,7 +773,7 @@ def league_drift(rows, w_sot):
     return run
 
 
-def backtest_all(rows, tune_season, rho, w_sot=0.0):
+def backtest_all(rows, tune_season, rho, w_sot=0.0, liga=None):
     out = []
     state = State()
     tune_start = None
@@ -771,6 +789,7 @@ def backtest_all(rows, tune_season, rho, w_sot=0.0):
     run = {}
     prev = None
     last_s = None
+    bases = corner_bases(rows)
     for d in sorted(by_day):
         ms = by_day[d]
         if d >= tune_start:
@@ -793,6 +812,7 @@ def backtest_all(rows, tune_season, rho, w_sot=0.0):
                 k = drift_k(ra, rp, n)
                 lam_h, lam_a = lam_h * k, lam_a * k
                 rec = {"season": m["season"], "date": d, "hit": m["hg"] + m["ag"] > 1.5,
+                       "home": m["home"], "away": m["away"], "liga": liga,
                        "hg": m["hg"], "ag": m["ag"],
                        "hhg": m["hhg"], "hag": m["hag"], "hc": m["hc"], "ac": m["ac"],
                        "o_h": m["o_h"], "o_d": m["o_d"], "o_a": m["o_a"], "o_lines": m["o_lines"],
@@ -800,7 +820,7 @@ def backtest_all(rows, tune_season, rho, w_sot=0.0):
                 jm = joint_metrics(lam_h, lam_a, rho)
                 rec["ph"], rec["pd"], rec["pa"] = jm["ph"], jm["pd"], jm["pa"]
                 rec["gols"] = {"over": jm["gols_over"], "under": jm["gols_under"]}
-                e, h = line_probs(r["lam_c"], r["lam_ht"], ESC_LINHAS)
+                e, h = line_probs(r["lam_c"], r["lam_ht"], ESC_LINHAS, bases)
                 rec["esc"] = e
                 rec["ht"] = h
                 out.append(rec)
@@ -819,7 +839,7 @@ def build_valid(rows_all, rho_map, w_sot):
         if not rows:
             continue
         tune_season = ov.TUNE_SEASON.get(lg["key"], "2425")
-        items = backtest_all(rows, tune_season, rho_map.get(lg["key"], 0.0), w_sot)
+        items = backtest_all(rows, tune_season, rho_map.get(lg["key"], 0.0), w_sot, lg["key"])
         for it in items:
             if it["season"] == tune_season:
                 continue
@@ -1123,6 +1143,7 @@ def main():
             state.advance(m)
         rho = rho_map[lg["key"]]
         run_drift = league_drift(rows, best_w)
+        bases = corner_bases(rows)
         sdates = {}
         for m in rows:
             sdates.setdefault(m["season"], []).append(m["date"])
@@ -1150,7 +1171,7 @@ def main():
             k = drift_k(ra, rp, n)
             lam_h, lam_a = lam_h * k, lam_a * k
             jm = joint_metrics(lam_h, lam_a, rho)
-            e, h = line_probs(r["lam_c"], r["lam_ht"], ESC_LINHAS)
+            e, h = line_probs(r["lam_c"], r["lam_ht"], ESC_LINHAS, bases)
             odds = espn_odds(lg, f, data_dir, "fixtures" in refresh)
             jogos.append({
                 "liga": lg["nome"], "casa": f["home"], "fora": f["away"],
