@@ -487,7 +487,7 @@ def espn_fixtures(lg, days, data_dir, refresh):
         teams = {c["homeAway"]: c["team"]["displayName"] for c in comp["competitors"]}
         if "home" not in teams or "away" not in teams:
             continue
-        out.append({"date": ev["date"], "home": teams["home"], "away": teams["away"]})
+        out.append({"date": ev["date"], "home": teams["home"], "away": teams["away"], "id": ev.get("id")})
     return out
 
 

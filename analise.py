@@ -185,6 +185,63 @@ def espn_bra_corners(data_dir, refresh):
     return events
 
 
+def _dec_odds(am):
+    if am is None:
+        return None
+    try:
+        v = int(am)
+    except (TypeError, ValueError):
+        return None
+    if v > 0:
+        return round(1.0 + 100.0 / v, 4)
+    if v < 0:
+        return round(1.0 + 100.0 / (-v), 4)
+    return None
+
+
+def _odds_at(node, *keys):
+    for k in keys:
+        if not isinstance(node, dict):
+            return None
+        node = node.get(k)
+    return node
+
+
+def espn_odds(lg, f, data_dir, refresh):
+    eid = f.get("id")
+    if not eid:
+        return None
+    cache = data_dir / f"espn_odds_{lg['espn']}.json"
+    odds = {}
+    if cache.exists():
+        try:
+            odds = json.loads(cache.read_text())
+        except Exception:
+            odds = {}
+    if eid in odds and not refresh:
+        return odds[eid]
+    try:
+        s = json.loads(ov.fetch(
+            f"https://site.api.espn.com/apis/site/v2/sports/soccer/{lg['espn']}/summary?event={eid}",
+            timeout=20))
+    except Exception as e:
+        print(f"  ! falha odds {lg['nome']} ({f.get('home', '')} x {f.get('away', '')}): {e}")
+        return None
+    pc = (s.get("pickcenter") or [{}])[0]
+    o = {
+        "h": _dec_odds(_odds_at(pc, "moneyline", "home", "close", "odds")),
+        "d": _dec_odds(_odds_at(pc, "moneyline", "draw", "close", "odds")),
+        "a": _dec_odds(_odds_at(pc, "moneyline", "away", "close", "odds")),
+        "over": _dec_odds(_odds_at(pc, "total", "over", "close", "odds")),
+        "under": _dec_odds(_odds_at(pc, "total", "under", "close", "odds")),
+    }
+    if not (o["h"] and o["d"] and o["a"]):
+        return None
+    odds[eid] = o
+    cache.write_text(json.dumps(odds))
+    return o
+
+
 def espn_cup_history(data_dir, refresh):
     cache = data_dir / "espn_cdb_history.json"
     today = dt.date.today()
@@ -1066,10 +1123,12 @@ def main():
             lam_h, lam_a = lam_h * k, lam_a * k
             jm = joint_metrics(lam_h, lam_a, rho)
             e, h = line_probs(r["lam_c"], r["lam_ht"], ESC_LINHAS)
+            odds = espn_odds(lg, f, data_dir, "fixtures" in refresh)
             jogos.append({
                 "liga": lg["nome"], "casa": f["home"], "fora": f["away"],
                 "data": f["date"], "hora_br": fmt_br(f["date"]),
                 "dados": "completo" if r["full"] else "parcial",
+                "odds": odds,
                 "lam": round(lam_h + lam_a, 2),
                 "lam_ht": None if r["lam_ht"] is None else round(r["lam_ht"][0] + r["lam_ht"][1], 2),
                 "lam_esc": None if r["lam_c"] is None else round(r["lam_c"][0] + r["lam_c"][1], 2),

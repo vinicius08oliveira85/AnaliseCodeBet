@@ -191,7 +191,8 @@ function renderJogos() {
 
     return `<div class="card mc">
       <div class="mc-head">${esc(g.casa)} <span class="vs">x</span> ${esc(g.fora)}
-        <span class="badge ${g.dados === 'completo' ? 'ok' : 'med'}">${g.dados}</span></div>
+        <span class="badge ${g.dados === 'completo' ? 'ok' : 'med'}">${g.dados}</span>
+        ${calP[j] ? '<span class="badge ok">com odds</span>' : ''}</div>
       <div class="mc-meta"><span>${esc(g.liga)}</span><span>${g.hora_br}</span>
         <span>⚽ ${g.lam} gols esperados</span>${g.lam_esc ? `<span>🟨 ${g.lam_esc} escanteios esperados</span>` : ''}</div>
       ${mktRow(j, 'Resultado', x12)}
@@ -311,12 +312,34 @@ function aplicarAuto(k) {
   for (const m of c.ms) addPick(m.i, m.best.tipo, m.best.li, m.best.p, m.best.nome);
 }
 
+function buildCal(g, o) {
+  const c12 = (data.cal && data.cal.x12) || { w: 0 };
+  const c25 = (data.cal && data.cal.gols_over && data.cal.gols_over['2.5']) || { w: 0 };
+  const cp = {};
+  if (o && o.h && o.d && o.a) {
+    const inv = [1 / o.h, 1 / o.d, 1 / o.a];
+    const s = inv.reduce((a, b) => a + b, 0);
+    const pm = inv.map(x => x / s);
+    const po = [g.prob.x1, g.prob.x, g.prob.x2];
+    cp.x12 = pm.map((a, k) => c12.w * a + (1 - c12.w) * po[k]);
+  }
+  if (o && o.over && o.under) {
+    const po = (1 / o.over) / (1 / o.over + 1 / o.under);
+    cp.g25 = {
+      over: c25.w * po + (1 - c25.w) * g.prob.gols_over[2],
+      under: 1 - (c25.w * po + (1 - c25.w) * g.prob.gols_over[2]),
+    };
+  }
+  return Object.keys(cp).length ? cp : null;
+}
+
+function autoCal() {
+  data.jogos.forEach((g, i) => { calP[i] = g.odds ? buildCal(g, g.odds) : null; });
+}
+
 function aplicarOdds() {
   const l12 = document.getElementById('odds12').value.trim();
   const l25 = document.getElementById('odds25').value.trim();
-  if (!l12 && !l25) return;
-  const c12 = (data.cal && data.cal.x12) || { w: 0 };
-  const c25 = (data.cal && data.cal.gols_over && data.cal.gols_over['2.5']) || { w: 0 };
   const o12 = l12 ? l12.split('\n')
     .map(s => s.split(',').map(x => parseFloat(x.trim())))
     .filter(r => r.length === 3 && r.every(x => x > 1)) : [];
@@ -324,22 +347,16 @@ function aplicarOdds() {
     .map(s => s.split(',').map(x => parseFloat(x.trim())))
     .filter(r => r.length === 2 && r.every(x => x > 1)) : [];
   data.jogos.forEach((g, i) => {
-    const cp = {};
-    if (o12[i]) {
-      const inv = o12[i].map(x => 1 / x);
-      const s = inv.reduce((a, b) => a + b, 0);
-      const pm = inv.map(x => x / s);
-      const po = [g.prob.x1, g.prob.x, g.prob.x2];
-      cp.x12 = pm.map((a, k) => c12.w * a + (1 - c12.w) * po[k]);
-    }
-    if (o25[i]) {
-      const po = (1 / o25[i][0]) / (1 / o25[i][0] + 1 / o25[i][1]);
-      cp.g25 = {
-        over: c25.w * po + (1 - c25.w) * g.prob.gols_over[2],
-        under: 1 - (c25.w * po + (1 - c25.w) * g.prob.gols_over[2]),
+    if (o12[i] || o25[i]) {
+      const o = {
+        h: o12[i] ? o12[i][0] : null, d: o12[i] ? o12[i][1] : null, a: o12[i] ? o12[i][2] : null,
+        over: o25[i] ? o25[i][0] : null, under: o25[i] ? o25[i][1] : null,
       };
+      const cp = buildCal(g, o);
+      calP[i] = cp || (g.odds ? buildCal(g, g.odds) : null);
+    } else if (g.odds) {
+      calP[i] = buildCal(g, g.odds);
     }
-    calP[i] = Object.keys(cp).length ? cp : null;
   });
   renderJogos();
   autoCombos();
@@ -348,7 +365,7 @@ function aplicarOdds() {
 function limparOdds() {
   document.getElementById('odds12').value = '';
   document.getElementById('odds25').value = '';
-  for (const k of Object.keys(calP)) delete calP[k];
+  autoCal();
   renderJogos();
   autoCombos();
 }
@@ -360,14 +377,17 @@ fetch('analise.json')
     const q = d.jogos.length;
     const gerado = new Date(d.gerado_em).toLocaleString('pt-BR',
       { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const nOdds = d.jogos.filter(g => g.odds).length;
     document.getElementById('sub').textContent =
-      'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot;
+      'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot +
+      (nOdds ? ' · odds da ESPN embutidas em ' + nOdds + ' jogos' : '');
     document.getElementById('meta1').textContent = '· validação fora de amostra';
     if (d.cal && d.cal.x12) {
       document.getElementById('w12').textContent = d.cal.x12.w.toFixed(2);
       document.getElementById('w25').textContent =
         (d.cal.gols_over && d.cal.gols_over['2.5']) ? d.cal.gols_over['2.5'].w.toFixed(2) : '—';
     }
+    autoCal();
     renderFiltro();
     renderStats();
     renderJogos();
