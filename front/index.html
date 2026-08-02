@@ -23,54 +23,79 @@
         <div class="sub" id="sub">carregando dados…</div>
       </div>
     </div>
-    <nav class="tabs" aria-label="Seções">
-      <button id="tab-prev" class="tab act" onclick="aba('prev')">
-        <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>
-        Previsões
-      </button>
-      <button id="tab-vivo" class="tab" onclick="aba('vivo')">
-        <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="12" height="12" rx="3"/><path d="M18 10h2.5a1.5 1.5 0 0 1 0 3H18"/><path d="M20 14v.01"/></svg>
-        Ao vivo
-        <span class="cnt" id="vivo-n"></span>
-      </button>
-    </nav>
   </div>
 </div>
 
+<nav class="menu-bar" aria-label="Funcionalidades">
+  <div class="menu">
+    <button class="menu-item act" data-sec="sec-taxas" onclick="irPara('sec-taxas')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+      Taxas de acerto
+    </button>
+    <button class="menu-item" data-sec="sec-combo" onclick="irPara('sec-combo')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><path d="M17 13v8M13 17h8"/></svg>
+      Combinação
+      <span class="cnt" id="menu-combo"></span>
+    </button>
+    <button class="menu-item" data-sec="sec-auto" onclick="irPara('sec-auto')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.8L18.5 9.7l-4.6 1.9L12 16.4l-1.9-4.8-4.6-1.9 4.6-1.9L12 3z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/></svg>
+      Sugestões
+    </button>
+    <button class="menu-item" data-sec="sec-jogos" onclick="irPara('sec-jogos')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
+      Jogos e previsões
+    </button>
+    <button class="menu-item" data-sec="sec-calib" onclick="irPara('sec-calib')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>
+      Calibração
+    </button>
+    <span class="menu-sep" aria-hidden="true"></span>
+    <button class="menu-item" data-sec="sec-vivo" onclick="irPara('sec-vivo')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="12" height="12" rx="3"/><path d="M18 10h2.5a1.5 1.5 0 0 1 0 3H18"/><path d="M20 14v.01"/></svg>
+      Ao vivo
+      <span class="cnt" id="menu-vivo"></span>
+    </button>
+  </div>
+</nav>
+
 <main class="wrap">
   <section id="sec-prev">
-    <h2>Taxas de acerto <span class="n" id="meta1"></span></h2>
-    <div class="filtro" id="filtro-stat"></div>
-    <div class="stats" id="stats">
-      <div class="skeleton" style="height:74px"></div>
-      <div class="skeleton" style="height:74px"></div>
-      <div class="skeleton" style="height:74px"></div>
-      <div class="skeleton" style="height:74px"></div>
-      <div class="skeleton" style="height:74px"></div>
-      <div class="skeleton" style="height:74px"></div>
-    </div>
+    <section class="sec" id="sec-taxas">
+      <h2>Taxas de acerto <span class="n" id="meta1"></span></h2>
+      <div class="filtro" id="filtro-stat"></div>
+      <div class="stats" id="stats">
+        <div class="skeleton" style="height:74px"></div>
+        <div class="skeleton" style="height:74px"></div>
+        <div class="skeleton" style="height:74px"></div>
+        <div class="skeleton" style="height:74px"></div>
+        <div class="skeleton" style="height:74px"></div>
+        <div class="skeleton" style="height:74px"></div>
+      </div>
+    </section>
 
     <div class="grid2">
-      <div>
+      <section class="sec" id="sec-combo">
         <h2>Sua combinação <span class="n" id="combo-n"></span></h2>
         <div class="card" id="combo"></div>
-      </div>
-      <div>
+      </section>
+      <section class="sec" id="sec-auto">
         <h2>Sugestões automáticas</h2>
         <div class="card" id="auto"></div>
+      </section>
+    </div>
+
+    <section class="sec" id="sec-jogos">
+      <h2>Jogos e previsões <span class="n" id="meta2"></span></h2>
+      <div class="filtro" id="filtro"></div>
+      <div class="jogos" id="jogos">
+        <div class="skeleton" style="height:220px"></div>
+        <div class="skeleton" style="height:220px"></div>
+        <div class="skeleton" style="height:220px"></div>
+        <div class="skeleton" style="height:220px"></div>
       </div>
-    </div>
+    </section>
 
-    <h2>Jogos e previsões <span class="n" id="meta2"></span></h2>
-    <div class="filtro" id="filtro"></div>
-    <div class="jogos" id="jogos">
-      <div class="skeleton" style="height:220px"></div>
-      <div class="skeleton" style="height:220px"></div>
-      <div class="skeleton" style="height:220px"></div>
-      <div class="skeleton" style="height:220px"></div>
-    </div>
-
-    <details class="odds card" style="margin-top:14px">
+    <details class="odds card sec" id="sec-calib" style="margin-top:14px">
       <summary>
         <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8 7 17M17 7l2.8-2.8"/></svg>
         Calibração com odds — automática (odds ESPN embutidas nos jogos); cole outras odds para ajustar
@@ -94,7 +119,7 @@
     </details>
   </section>
 
-  <section id="sec-vivo" hidden>
+  <section class="sec" id="sec-vivo" hidden>
     <h2>Validação ao vivo <span class="n" id="vivo-meta"></span></h2>
     <div class="stats" id="vivo-stats"></div>
     <div id="vivo"></div>

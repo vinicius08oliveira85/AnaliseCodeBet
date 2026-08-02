@@ -64,8 +64,34 @@ function setFiltro(key) {
 function aba(nome) {
   document.getElementById('sec-prev').hidden = nome !== 'prev';
   document.getElementById('sec-vivo').hidden = nome !== 'vivo';
-  document.getElementById('tab-prev').classList.toggle('act', nome === 'prev');
-  document.getElementById('tab-vivo').classList.toggle('act', nome === 'vivo');
+  const tp = document.getElementById('tab-prev');
+  if (tp) tp.classList.toggle('act', nome === 'prev');
+  const tv = document.getElementById('tab-vivo');
+  if (tv) tv.classList.toggle('act', nome === 'vivo');
+}
+
+function setMenuAtivo(id) {
+  document.querySelectorAll('.menu-item').forEach(b => b.classList.toggle('act', b.dataset.sec === id));
+}
+
+function irPara(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const vivo = document.getElementById('sec-vivo');
+  if (id === 'sec-vivo' && vivo.hidden) aba('vivo');
+  else if (id !== 'sec-vivo' && !vivo.hidden) aba('prev');
+  setMenuAtivo(id);
+  setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+}
+
+function initSpy() {
+  if (!('IntersectionObserver' in window)) return;
+  const secs = ['sec-taxas', 'sec-combo', 'sec-auto', 'sec-jogos', 'sec-calib', 'sec-vivo']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  const obs = new IntersectionObserver(es => {
+    for (const e of es) if (e.isIntersecting) setMenuAtivo(e.target.id);
+  }, { rootMargin: '-35% 0px -55% 0px', threshold: 0 });
+  secs.forEach(s => obs.observe(s));
 }
 
 function nomeVivo(k) {
@@ -78,7 +104,10 @@ function nomeVivo(k) {
 
 function renderAoVivo() {
   const av = data.ao_vivo;
-  document.getElementById('vivo-n').textContent = av && av.n ? String(av.n) : '';
+  const vn = document.getElementById('vivo-n');
+  if (vn) vn.textContent = av && av.n ? String(av.n) : '';
+  const mv = document.getElementById('menu-vivo');
+  if (mv) mv.textContent = av && av.n ? String(av.n) : '';
   const el = document.getElementById('vivo');
   if (!av || !av.n) {
     document.getElementById('vivo-stats').innerHTML = '';
@@ -206,7 +235,7 @@ function renderStatsSel() {
     linha('Temporada', [['', 'Todas']].concat(temps.map(t => [t, rotuloTemp(t), nt(t)])), statsTemp, 'setStatTemp');
 }
 
-function setStatLiga(k) { statsLiga = k === '' ? null : k; renderStatsSel(); renderStats(); }
+function setStatLiga(k) { statsLiga = k === '' ? null : k; renderStatsSel(); renderStats(); renderJogos(); }
 function setStatTemp(k) { statsTemp = k === '' ? null : k; renderStatsSel(); renderStats(); }
 
 function rotuloTemp(s) {
@@ -258,9 +287,15 @@ function mktRow(j, nome, buts) {
 
 function renderJogos() {
   const el = document.getElementById('jogos');
+  const liga = statsLiga || null;
   const idxs = data.jogos
     .map((g, i) => i)
-    .filter(i => !dataFiltro || data.jogos[i].data.slice(0, 10) === dataFiltro);
+    .filter(i => {
+      const g = data.jogos[i];
+      if (dataFiltro && g.data.slice(0, 10) !== dataFiltro) return false;
+      if (liga && g.liga !== liga) return false;
+      return true;
+    });
   el.innerHTML = idxs.map(j => {
     const g = data.jogos[j];
     const pr = g.prob;
@@ -336,20 +371,23 @@ function renderJogos() {
     </div>`;
   }).join('');
   const n = idxs.length;
-  document.getElementById('meta2').textContent =
-    (dataFiltro ? '· mostrando ' + n + ' de ' + data.jogos.length + ' jogos' : '· ' + data.jogos.length + ' jogos') +
-    ' · clique para selecionar (✦ = maior chance do mercado)';
+  let nota = dataFiltro ? 'mostrando ' + n + ' de ' + data.jogos.length + ' jogos' : data.jogos.length + ' jogos';
+  if (liga) nota += ' · campeonato: ' + liga;
+  document.getElementById('meta2').textContent = '· ' + nota + ' · clique para selecionar (✦ = maior chance do mercado)';
 }
 
 function renderCombo() {
   const el = document.getElementById('combo');
   const nEl = document.getElementById('combo-n');
+  const mn = document.getElementById('menu-combo');
   if (!picks.length) {
     nEl.textContent = '';
+    if (mn) mn.textContent = '';
     el.innerHTML = '<div class="vazio">Clique em um palpite (✦ = melhor P) nos jogos acima para montar a combinação.</div>';
     return;
   }
   nEl.textContent = '· ' + picks.length + (picks.length > 1 ? ' palpites' : ' palpite');
+  if (mn) mn.textContent = String(picks.length);
   let pTot = 1, eTot = 1;
   const items = picks.map((p, i) => {
     pTot *= p.p; eTot *= p.taxa;
@@ -537,6 +575,7 @@ fetch('analise.json')
     renderCombo();
     autoCombos();
     renderAoVivo();
+    initSpy();
   })
   .catch(e => {
     const sub = document.getElementById('sub');

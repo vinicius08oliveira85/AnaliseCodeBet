@@ -357,7 +357,38 @@ textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3
   background-size: 220% 100%;
   animation: shimmer 1.5s infinite linear;
 }
-@keyframes shimmer { to { background-position: -220% 0; } }
+  @keyframes shimmer { to { background-position: -220% 0; } }
+
+  /* ---------- Menu de funcionalidades ---------- */
+  .menu-bar { border-top: 1px solid var(--border); background: rgba(7, 10, 18, .6); }
+  .menu {
+    max-width: 1440px; margin: 0 auto; padding: 5px clamp(12px, 3vw, 32px);
+    display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .menu::-webkit-scrollbar { display: none; }
+  .menu-item {
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none;
+    border: 1px solid transparent; background: transparent; color: var(--mut);
+    font-size: 11.5px; font-weight: 600; padding: 5px 11px; border-radius: 8px; cursor: pointer;
+    transition: color .15s, background .15s, border-color .15s, box-shadow .15s;
+  }
+  .menu-item svg { flex: none; opacity: .85; }
+  .menu-item:hover { color: var(--txt); background: var(--surface2); }
+  .menu-item.act {
+    color: var(--txt); font-weight: 700;
+    background: linear-gradient(135deg, rgba(56, 189, 248, .16), rgba(99, 102, 241, .18));
+    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, .22);
+  }
+  .menu-item.act svg { color: var(--accent); }
+  .menu-item .cnt {
+    font-size: 9px; font-weight: 800; min-width: 16px; padding: 0 5px; text-align: center;
+    border-radius: 999px; background: var(--surface3); color: var(--txt);
+  }
+  .menu-item.act .cnt { color: var(--onaccent); background: rgba(4, 18, 31, .3); }
+  .menu-sep { width: 1px; height: 18px; background: var(--border); flex: none; margin: 0 6px; }
+
+  .sec { scroll-margin-top: 96px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
