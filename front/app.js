@@ -20,6 +20,26 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+const ICO_PATHS = {
+  clock: '<path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" fill="none"/>',
+  ball: '<path d="M12 21c4.97 0 9-4.03 9-9S16.97 3 12 3 3 7.03 3 12s4.03 9 9 9z" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3.5v17" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="8" cy="6.6" r=".9" fill="currentColor"/><circle cx="16.2" cy="17.4" r=".9" fill="currentColor"/>',
+  corner: '<path d="M5 21V5a3 3 0 0 1 3-3h11" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/><path d="M16 2l5 5M21 2l-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/>',
+  shield: '<path d="M12 3l7 3v5c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" fill="none"/>',
+  check: '<path d="m5 12 4.5 4.5L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+  cross: '<path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>',
+  target: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" fill="none"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.7" fill="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/>',
+  flash: '<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor"/>',
+};
+function ico(name, size) {
+  const s = size || 12;
+  return `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true" style="flex:none">${ICO_PATHS[name] || ICO_PATHS.flash}</svg>`;
+}
+function corLiga(s) {
+  let h = 0;
+  for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return h;
+}
+
 function rotuloData(iso) {
   const d = new Date(iso);
   const dias = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
@@ -77,10 +97,10 @@ function renderAoVivo() {
   document.getElementById('vivo-stats').innerHTML = cards.join('');
   const rows = g => {
     const pks = g.picks.map(pk =>
-      `<span class="pick-badge ${pk.ok ? 'ok' : 'bad'}">${pk.ok ? '✓' : '✗'} ${esc(pk.nome)} <span class="p">${pct(pk.p)}</span></span>`).join('');
+      `<span class="pick-badge ${pk.ok ? 'ok' : 'bad'}"><span class="ic">${ico(pk.ok ? 'check' : 'cross', 9)}</span> ${esc(pk.nome)} <span class="p">${pct(pk.p)}</span></span>`).join('');
     return `<div class="vjogo"><div class="linha1"><span>${esc(g.casa)} x ${esc(g.fora)}</span>
-      <span class="resultado">${g.hg} – ${g.ag}</span><span class="pl">${esc(g.hora_br)}</span>
-      ${g.lam_esc ? `<span class="pl">⚽ ${g.lam} · 🟨 ${g.lam_esc}</span>` : ''}
+      <span class="resultado">${g.hg} – ${g.ag}</span><span class="pl">${ico('clock', 11)}${esc(g.hora_br)}</span>
+      ${g.lam_esc ? `<span class="pl">${ico('ball', 11)}${g.lam} · ${ico('corner', 11)}${g.lam_esc}</span>` : ''}
       </div><div class="picks">${pks}</div></div>`;
   };
   el.innerHTML = '<div class="vligas">' + av.por_liga.map(lg => {
@@ -161,9 +181,10 @@ function curto(tipo, li) {
 }
 
 function button(j, tipo, li, p, label, top) {
-  return `<button class="pick ${pickSeq[pickId(j, tipo, li)] ? 'sel' : ''} ${top ? 'top' : ''}"
+  const sel = pickSeq[pickId(j, tipo, li)];
+  return `<button class="pick ${sel ? 'sel' : ''} ${top ? 'top' : ''}"
     onclick="addPick(${j},'${tipo}',${li},${p.toFixed(6)},'${nomeMercado(tipo, li)}')">
-    <span class="mk">${label}${top ? ' <span class="star">✦</span>' : ''}</span><small>${pct(p)}</small></button>`;
+    <span class="mk">${sel ? '<span class="chk">' + ico('check', 9) + '</span>' : ''}${label}${top ? ' <span class="star">✦</span>' : ''}</span><small>${pct(p)}</small></button>`;
 }
 
 function renderStatsSel() {
@@ -229,8 +250,10 @@ function renderStats() {
 }
 
 function mktRow(j, nome, buts) {
-  if (!buts) return `<div class="mkt-row"><span class="mkt-name">${nome}</span><span class="sem">sem dados</span></div>`;
-  return `<div class="mkt-row"><span class="mkt-name">${nome}</span>${buts}</div>`;
+  const ic = nome === 'Resultado' ? 'target' : nome === 'Gols' ? 'ball' : nome === 'Primeiro tempo' ? 'clock' : nome === 'Escanteios' ? 'corner' : null;
+  const label = `<span class="mkt-name">${ic ? ico(ic, 11) : ''}${nome}</span>`;
+  if (!buts) return `<div class="mkt-row">${label}<span class="sem">sem dados</span></div>`;
+  return `<div class="mkt-row">${label}${buts}</div>`;
 }
 
 function renderJogos() {
@@ -290,12 +313,21 @@ function renderJogos() {
           ${button(j, 'esc_under', l, pv(j, 'esc_under', l), 'Menos de ' + l, false)}</div>`).join('') : ''}
       </div></details>`;
 
+    const cor = corLiga(g.liga);
     return `<div class="card mc">
-      <div class="mc-head">${esc(g.casa)} <span class="vs">x</span> ${esc(g.fora)}
-        <span class="badge ${g.dados === 'completo' ? 'ok' : 'med'}">${g.dados}</span>
-        ${calP[j] ? '<span class="badge ok">com odds</span>' : ''}</div>
-      <div class="mc-meta"><span>${esc(g.liga)}</span><span>${g.hora_br}</span>
-        <span>⚽ ${g.lam} gols esperados</span>${g.lam_esc ? `<span>🟨 ${g.lam_esc} escanteios esperados</span>` : ''}</div>
+      <div class="mc-head">
+        <div class="teams"><b>${esc(g.casa)}</b> <span class="vs">×</span> <b>${esc(g.fora)}</b></div>
+        <div class="mc-actions">
+          <span class="badge ${g.dados === 'completo' ? 'ok' : 'med'}">${g.dados}</span>
+          ${calP[j] ? '<span class="badge cal">com odds</span>' : ''}
+        </div>
+      </div>
+      <div class="mc-meta">
+        <span class="chip-liga" style="--lh:${cor}">${ico('shield', 10)}${esc(g.liga)}</span>
+        <span>${ico('clock', 12)}${g.hora_br}</span>
+        <span>${ico('ball', 12)}<b>${g.lam}</b> gols</span>
+        ${g.lam_esc ? `<span>${ico('corner', 12)}<b>${g.lam_esc}</b> escanteios</span>` : ''}
+      </div>
       ${mktRow(j, 'Resultado', x12 + dc)}
       ${mktRow(j, 'Gols', golsB)}
       ${mktRow(j, 'Primeiro tempo', htB)}
@@ -311,27 +343,32 @@ function renderJogos() {
 
 function renderCombo() {
   const el = document.getElementById('combo');
+  const nEl = document.getElementById('combo-n');
   if (!picks.length) {
+    nEl.textContent = '';
     el.innerHTML = '<div class="vazio">Clique em um palpite (✦ = melhor P) nos jogos acima para montar a combinação.</div>';
     return;
   }
+  nEl.textContent = '· ' + picks.length + (picks.length > 1 ? ' palpites' : ' palpite');
   let pTot = 1, eTot = 1;
-  const items = picks.map(p => {
+  const items = picks.map((p, i) => {
     pTot *= p.p; eTot *= p.taxa;
     return `<div class="combo-item">
+      <span class="cix">${i + 1}</span>
       <div class="nome">${p.label}</div>
       <div style="display:flex;align-items:center;gap:6px"><span class="p ${clsP(p.taxa)}">${pct(p.taxa)}</span>
       <button class="x" onclick="removePick('${p.id}')">✕</button></div>
     </div>`;
   }).join('');
   const badge = eTot >= 0.75 ? 'ok' : eTot >= 0.6 ? 'med' : 'bad';
+  const rot = eTot >= 0.75 ? '≥75% bom' : eTot >= 0.6 ? 'risco' : 'ruim';
   el.innerHTML = items + `
     <div class="totais">
-      <div>Probabilidade do modelo: <b class="p ${clsP(pTot)}">${pct(pTot)}</b></div>
-      <div>Expectativa pela validação: <b class="p ${clsP(eTot)}">${pct(eTot)}</b>
-        <span class="badge big ${badge}">${eTot >= 0.75 ? '≥75% bom' : eTot >= 0.6 ? 'risco' : 'ruim'}</span></div>
+      <div><span class="lbl">Probabilidade do modelo</span><b class="p ${clsP(pTot)}">${pct(pTot)}</b></div>
+      <div><span class="lbl">Expectativa pela validação</span><b class="p ${clsP(eTot)}">${pct(eTot)}</b>
+        <span class="badge big ${badge}">${rot}</span></div>
     </div>
-    <div style="margin-top:8px"><button class="btn" onclick="limparPicks()">Limpar combinação</button></div>`;
+    <div style="margin-top:10px"><button class="btn" onclick="limparPicks()">Limpar combinação</button></div>`;
 }
 
 function limparPicks() {
@@ -482,6 +519,7 @@ fetch('analise.json')
     const gerado = new Date(d.gerado_em).toLocaleString('pt-BR',
       { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     const nOdds = d.jogos.filter(g => g.odds).length;
+    document.getElementById('sub').classList.remove('erro');
     document.getElementById('sub').textContent =
       'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot +
       (nOdds ? ' · odds da ESPN embutidas em ' + nOdds + ' jogos' : '');
@@ -501,6 +539,9 @@ fetch('analise.json')
     renderAoVivo();
   })
   .catch(e => {
-    document.getElementById('sub').textContent =
-      'Erro ao carregar analise.json: ' + e.message + ' (sirva a pasta via HTTP, ex.: python3 -m http.server)';
+    const sub = document.getElementById('sub');
+    sub.classList.add('erro');
+    sub.textContent = 'Erro ao carregar analise.json: ' + e.message + ' (sirva a pasta via HTTP, ex.: python3 -m http.server)';
+    document.getElementById('stats').innerHTML = '';
+    document.getElementById('jogos').innerHTML = '';
   });
