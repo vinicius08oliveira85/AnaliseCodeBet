@@ -1016,6 +1016,55 @@ def calibrar(items, market):
     return res
 
 
+def bloco_validacao(sub):
+    xs = sub["x12"]
+    base = {"n": len(xs), "h": sum(1 for x in xs if x["hg"] + x["ag"] > 1.5)}
+    return {
+        "n": len(xs),
+        "validacao": {
+            "x12": validacao(sub["x12"], "x12"),
+            "dc": validacao_dc(sub["dc"]),
+            "gols_over": validacao(sub["gols_over"], "gols_over"),
+            "gols_under": validacao(sub["gols_under"], "gols_under"),
+            "ht_over": validacao(sub["ht_over"], "ht_over"),
+            "ht_under": validacao(sub["ht_under"], "ht_under"),
+            "esc_over": validacao(sub["esc_over"], "esc_over"),
+            "esc_under": validacao(sub["esc_under"], "esc_under"),
+            "base_over15": round(base["h"] / base["n"], 4) if base["n"] else None,
+        },
+        "cal": {"x12": calibrar(sub["x12"], "x12"),
+                "gols_over": calibrar(sub["gols_over"], "gols_over"),
+                "gols_under": calibrar(sub["gols_under"], "gols_under")},
+    }
+
+
+def validacao_por_grupos(valid):
+    nome_liga = {lg["key"]: lg["nome"] for lg in ov.LEAGUES}
+
+    def sub(pred):
+        return {mkt: [x for x in items if pred(x)] for mkt, items in valid.items()}
+
+    ligas = sorted({x.get("liga") for x in valid["x12"]} - {None})
+    por_liga = {}
+    for lk in ligas:
+        nome = nome_liga.get(lk, lk)
+        sg = sub(lambda x, lk=lk: x.get("liga") == lk)
+        entry = bloco_validacao(sg)
+        entry["por_temporada"] = {s: bloco_validacao(
+            sub(lambda x, lk=lk, s=s: x.get("liga") == lk and x["season"] == s))
+            for s in sorted({x["season"] for x in sg["x12"]})}
+        por_liga[nome] = entry
+    por_temporada = {}
+    for s in sorted({x["season"] for x in valid["x12"]}):
+        sg = sub(lambda x, s=s: x["season"] == s)
+        entry = bloco_validacao(sg)
+        entry["por_liga"] = {nome_liga.get(lk, lk): bloco_validacao(
+            sub(lambda x, lk=lk, s=s: x.get("liga") == lk and x["season"] == s))
+            for lk in ligas}
+        por_temporada[s] = entry
+    return {"por_liga": por_liga, "por_temporada": por_temporada}
+
+
 def picks_previsao(j, cal):
     pr = j["prob"]
     o = j.get("odds") or {}
@@ -1423,6 +1472,7 @@ def main():
             "esc_over": validacao(valid["esc_over"], "esc_over"),
             "esc_under": validacao(valid["esc_under"], "esc_under"),
             "base_over15": round(base_tot["h"] / base_tot["n"], 4) if base_tot["n"] else None,
+            **validacao_por_grupos(valid),
         },
         "cal": cal_data,
         "w_sot": best_w,

@@ -37,6 +37,10 @@
   .filtro button .cnt { color: var(--mut); }
   .filtro button.act .cnt { color: #0b2a40; }
   .filtro button:hover { border-color: var(--azul); }
+
+  .filtro.stat { flex-direction: column; align-items: stretch; gap: 6px; }
+  .stat-linha { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .stat-linha .slbl { color: var(--mut); font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; margin-right: 2px; }
   .mc { padding: 10px; margin-bottom: 0; }
   .mc-head { display: flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 700; flex-wrap: wrap; }
   .mc-head .vs { color: var(--mut); font-weight: 400; }
@@ -128,6 +132,7 @@
 
   <section id="sec-prev">
     <h2>Taxas de acerto <span class="n" id="meta1"></span></h2>
+    <div class="filtro" id="filtro-stat"></div>
     <div class="stats" id="stats"></div>
 
     <div class="grid2">

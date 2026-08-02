@@ -8,6 +8,8 @@ const REC_ESC = [[7.5, 'over'], [11.5, 'under'], [12.5, 'under']];
 
 let data = null;
 let dataFiltro = null;
+let statsLiga = null;
+let statsTemp = null;
 const picks = [];
 const pickSeq = {};
 const calP = {};
@@ -164,20 +166,60 @@ function button(j, tipo, li, p, label, top) {
     <span class="mk">${label}${top ? ' <span class="star">✦</span>' : ''}</span><small>${pct(p)}</small></button>`;
 }
 
+function renderStatsSel() {
+  const v = data.validacao;
+  const ligas = v.por_liga ? Object.keys(v.por_liga).sort() : [];
+  const temps = v.por_temporada ? Object.keys(v.por_temporada).sort() : [];
+  const linha = (lbl, itens, sel, cb) => {
+    const b = (k, label) => {
+      const at = sel === null ? k === '' : sel === k;
+      return `<button class="${at ? 'act' : ''}" onclick="${cb}('${k}')">${esc(label)}</button>`;
+    };
+    const op = itens.map(([k, label, n]) => b(k, label + (n ? ` <span class="cnt">(${n})</span>` : ''))).join('');
+    return `<div class="stat-linha"><span class="slbl">${lbl}</span>${op}</div>`;
+  };
+  const nl = k => (v.por_liga[k] ? v.por_liga[k].n : 0);
+  const nt = k => (v.por_temporada[k] ? v.por_temporada[k].n : 0);
+  document.getElementById('filtro-stat').innerHTML =
+    linha('Campeonato', [['', 'Todas']].concat(ligas.map(l => [l, l, nl(l)])), statsLiga, 'setStatLiga') +
+    linha('Temporada', [['', 'Todas']].concat(temps.map(t => [t, rotuloTemp(t), nt(t)])), statsTemp, 'setStatTemp');
+}
+
+function setStatLiga(k) { statsLiga = k === '' ? null : k; renderStatsSel(); renderStats(); }
+function setStatTemp(k) { statsTemp = k === '' ? null : k; renderStatsSel(); renderStats(); }
+
+function rotuloTemp(s) {
+  if (/^20\d{2}$/.test(s)) return s;
+  if (/^\d{4}$/.test(s)) return s.slice(0, 2) + '/' + s.slice(2);
+  return s;
+}
+
 function renderStats() {
   const v = data.validacao;
   const cal = data.cal || {};
+  let vv = v, cc = cal, nome = null;
+  if (statsLiga && statsTemp) {
+    const s = v.por_liga[statsLiga] && v.por_liga[statsLiga].por_temporada[statsTemp];
+    if (s) { vv = s.validacao; cc = s.cal; nome = statsLiga + ' · ' + rotuloTemp(statsTemp); }
+  } else if (statsLiga) {
+    const s = v.por_liga[statsLiga];
+    if (s) { vv = s.validacao; cc = s.cal; nome = statsLiga; }
+  } else if (statsTemp) {
+    const s = v.por_temporada[statsTemp];
+    if (s) { vv = s.validacao; cc = s.cal; nome = rotuloTemp(statsTemp); }
+  }
+  document.getElementById('meta1').textContent = '· validação fora de amostra' + (nome ? ' — ' + nome : '');
   const cards = [
-    ['Resultado (probabilidade ≥ 75%)', v.x12['0.75'], ''],
-    ['Resultado + odds', cal.x12 && cal.x12.taxa ? { taxa: cal.x12.taxa, n: cal.x12.n } : null, 'cal'],
-    ['Dupla chance 1X (≥ 75%)', v.dc && v.dc['1x'] && v.dc['1x']['0.75'], ''],
-    ['Dupla chance X2 (≥ 75%)', v.dc && v.dc['x2'] && v.dc['x2']['0.75'], ''],
-    ['Gols: mais de 1.5', v.gols_over['1.5'], ''],
-    ['Gols: menos de 5.5', v.gols_under['5.5'], ''],
-    ['Primeiro tempo: mais de 0.5', v.ht_over['0.5'], ''],
-    ['Primeiro tempo: menos de 2.5', v.ht_under['2.5'], ''],
-    ['Escanteios: mais de 7.5', v.esc_over['7.5'], ''],
-    ['Escanteios: menos de 12.5', v.esc_under['12.5'], ''],
+    ['Resultado (probabilidade ≥ 75%)', vv.x12['0.75'], ''],
+    ['Resultado + odds', cc.x12 && cc.x12.taxa ? { taxa: cc.x12.taxa, n: cc.x12.n } : null, 'cal'],
+    ['Dupla chance 1X (≥ 75%)', vv.dc && vv.dc['1x'] && vv.dc['1x']['0.75'], ''],
+    ['Dupla chance X2 (≥ 75%)', vv.dc && vv.dc['x2'] && vv.dc['x2']['0.75'], ''],
+    ['Gols: mais de 1.5', vv.gols_over['1.5'], ''],
+    ['Gols: menos de 5.5', vv.gols_under['5.5'], ''],
+    ['Primeiro tempo: mais de 0.5', vv.ht_over['0.5'], ''],
+    ['Primeiro tempo: menos de 2.5', vv.ht_under['2.5'], ''],
+    ['Escanteios: mais de 7.5', vv.esc_over['7.5'], ''],
+    ['Escanteios: menos de 12.5', vv.esc_under['12.5'], ''],
   ];
   document.getElementById('stats').innerHTML = cards.map(([l, e, extra]) => {
     if (!e) return `<div class="stat"><div class="l">${l}</div><div class="v">—</div></div>`;
@@ -451,6 +493,7 @@ fetch('analise.json')
     }
     autoCal();
     renderFiltro();
+    renderStatsSel();
     renderStats();
     renderJogos();
     renderCombo();
