@@ -39,6 +39,56 @@ function setFiltro(key) {
   renderJogos();
 }
 
+function aba(nome) {
+  document.getElementById('sec-prev').hidden = nome !== 'prev';
+  document.getElementById('sec-vivo').hidden = nome !== 'vivo';
+  document.getElementById('tab-prev').classList.toggle('act', nome === 'prev');
+  document.getElementById('tab-vivo').classList.toggle('act', nome === 'vivo');
+}
+
+function nomeVivo(k) {
+  const p = k.split('_');
+  if (p[0] === 'x12') return 'Resultado: ' + ['Casa', 'Empate', 'Fora'][Number(p[1])];
+  if (p[0] === 'dc') return 'Dupla ' + p[1].toUpperCase();
+  const mkt = p[0] === 'gols' ? 'Gols' : p[0] === 'ht' ? '1º tempo' : 'Escanteios';
+  return mkt + ': ' + (p[1] === 'over' ? 'mais de ' : 'menos de ') + p[2];
+}
+
+function renderAoVivo() {
+  const av = data.ao_vivo;
+  document.getElementById('vivo-n').textContent = av && av.n ? String(av.n) : '';
+  const el = document.getElementById('vivo');
+  if (!av || !av.n) {
+    document.getElementById('vivo-stats').innerHTML = '';
+    document.getElementById('vivo-meta').textContent = '';
+    el.innerHTML = '<div class="vazio">Nenhum jogo previsto foi finalizado ainda. Rode o pipeline periodicamente ' +
+      '(ex.: uma vez ao dia) para coletar os resultados dos jogos já previstos.</div>';
+    return;
+  }
+  document.getElementById('vivo-meta').textContent = '· ' + av.n + ' jogos · ' + av.picks_n +
+    ' palpites (P≥' + pct(av.thr) + ') · acerto ' + pct(av.taxa);
+  const cards = Object.keys(av.por_mercado).sort().map(k => {
+    const m = av.por_mercado[k];
+    return `<div class="stat ${clsP(m.taxa)}"><div class="l">${esc(nomeVivo(k))}</div>
+      <div class="v">${pct(m.taxa)}</div><div class="n">${m.hit}/${m.n} palpites</div></div>`;
+  });
+  document.getElementById('vivo-stats').innerHTML = cards.join('');
+  const rows = g => {
+    const pks = g.picks.map(pk =>
+      `<span class="pick-badge ${pk.ok ? 'ok' : 'bad'}">${pk.ok ? '✓' : '✗'} ${esc(pk.nome)} <span class="p">${pct(pk.p)}</span></span>`).join('');
+    return `<div class="vjogo"><div class="linha1"><span>${esc(g.casa)} x ${esc(g.fora)}</span>
+      <span class="resultado">${g.hg} – ${g.ag}</span><span class="pl">${esc(g.hora_br)}</span>
+      ${g.lam_esc ? `<span class="pl">⚽ ${g.lam} · 🟨 ${g.lam_esc}</span>` : ''}
+      </div><div class="picks">${pks}</div></div>`;
+  };
+  el.innerHTML = '<div class="vligas">' + av.por_liga.map(lg => {
+    const jgs = av.jogos.filter(j => j.liga === lg.liga);
+    return `<details class="vliga" open><summary><b>${esc(lg.liga)}</b>
+      <span class="resumo">${lg.games} jogos · ${lg.picks_n} palpites · acerto ${pct(lg.taxa)}</span></summary>
+      <div class="vjogos">${jgs.map(rows).join('')}</div></details>`;
+  }).join('') + '</div>';
+}
+
 function taxaPick(tipo, linha, p) {
   const v = data.validacao[tipo];
   if (!v) return p;
@@ -405,6 +455,7 @@ fetch('analise.json')
     renderJogos();
     renderCombo();
     autoCombos();
+    renderAoVivo();
   })
   .catch(e => {
     document.getElementById('sub').textContent =

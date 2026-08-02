@@ -112,6 +112,69 @@ class TestFrontJson(unittest.TestCase):
         dates = [j["data"] for j in self.data["jogos"]]
         self.assertEqual(dates, sorted(dates))
 
+    def test_ao_vivo_key(self):
+        self.assertIn("ao_vivo", self.data)
+        av = self.data["ao_vivo"]
+        for k in ("n", "picks_n", "hit", "thr", "por_mercado", "por_liga"):
+            self.assertIn(k, av)
+
+
+class TestAoVivo(unittest.TestCase):
+    def test_picks_previsao_cal_com_odds(self):
+        cal = {"x12": {"w": 0.5}, "gols_over": {"2.5": {"w": 0.4}}, "gols_under": {}}
+        j = {"liga": "T", "odds": {"h": 2.0, "d": 3.5, "a": 3.8, "over": 1.9, "under": 1.9},
+             "prob": {"x1": 0.45, "x": 0.28, "x2": 0.27,
+                      "gols_over": [0.9, 0.7, 0.55, 0.35, 0.2, 0.1],
+                      "gols_under": [0.1, 0.3, 0.45, 0.65, 0.8, 0.9],
+                      "ht_over": [0.75, 0.4, 0.2, 0.1],
+                      "ht_under": [0.25, 0.6, 0.8, 0.9],
+                      "esc_over": [0.85, 0.75, 0.62, 0.5, 0.38, 0.3],
+                      "esc_under": [0.15, 0.25, 0.38, 0.5, 0.62, 0.7]}}
+        picks = an.picks_previsao(j, cal)
+        tipos = {p["tipo"] for p in picks}
+        self.assertIn("x12", tipos)
+        self.assertIn("dc", tipos)
+        self.assertIn("gols_over", tipos)
+        self.assertIn("ht_over", tipos)
+        self.assertIn("esc_over", tipos)
+        self.assertTrue(all(0 <= p["p"] <= 1 for p in picks))
+        dcs = {p["linha"] for p in picks if p["tipo"] == "dc"}
+        self.assertEqual(dcs, {"1x", "x2", "12"})
+
+    def test_validacao_ao_vivo(self):
+        cal = {"x12": {"w": 0.5}, "gols_over": {}, "gols_under": {}}
+        j = {"liga": "T", "casa": "A", "fora": "B", "odds": None,
+             "prob": {"x1": 0.45, "x": 0.28, "x2": 0.27,
+                      "gols_over": [0.9, 0.7, 0.55, 0.35, 0.2, 0.1],
+                      "gols_under": [0.1, 0.3, 0.45, 0.65, 0.8, 0.9],
+                      "ht_over": [0.75, 0.4, 0.2, 0.1],
+                      "ht_under": [0.25, 0.6, 0.8, 0.9],
+                      "esc_over": [0.85, 0.75, 0.62, 0.5, 0.38, 0.3],
+                      "esc_under": [0.15, 0.25, 0.38, 0.5, 0.62, 0.7]}}
+        prevs = [{"id": "1", "liga": "T", "casa": "A", "fora": "B",
+                  "data": "2026-07-01T19:00:00Z", "picks": an.picks_previsao(j, cal)}]
+        res = {"1": {"hg": 2, "ag": 1, "hhg": 1, "hag": 0, "hc": 6, "ac": 8}}
+        av = an.validacao_ao_vivo(prevs, res)
+        self.assertEqual(av["n"], 1)
+        self.assertGreater(av["picks_n"], 0)
+        self.assertEqual(av["hit"], av["picks_n"] - 1)
+        self.assertIn("dc_1x", av["por_mercado"])
+        self.assertTrue(av["por_mercado"]["gols_over_1.5"]["hit"] == 1)
+        self.assertTrue(av["por_mercado"]["esc_under_12.5"]["hit"] == 0)
+        self.assertEqual(av["por_liga"][0]["games"], 1)
+
+    def test_pick_ok_mercados(self):
+        r = {"hg": 1, "ag": 1, "hhg": 0, "hag": 1, "hc": 5, "ac": 7}
+        self.assertTrue(an.pick_ok({"tipo": "x12", "linha": 1}, r))
+        self.assertFalse(an.pick_ok({"tipo": "x12", "linha": 0}, r))
+        self.assertTrue(an.pick_ok({"tipo": "dc", "linha": "1x"}, r))
+        self.assertTrue(an.pick_ok({"tipo": "gols_over", "linha": 1.5}, r))
+        self.assertFalse(an.pick_ok({"tipo": "gols_over", "linha": 2.5}, r))
+        self.assertTrue(an.pick_ok({"tipo": "ht_under", "linha": 2.5}, r))
+        self.assertTrue(an.pick_ok({"tipo": "esc_over", "linha": 7.5}, r))
+        self.assertIsNone(an.pick_ok({"tipo": "esc_over", "linha": 7.5},
+                                     {"hg": 1, "ag": 1, "hc": None, "ac": None}))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -89,6 +89,29 @@
   .od .mkt { color: var(--mut); font-size: 10.5px; margin-bottom: 4px; }
   details.odds summary { color: var(--mut); font-size: 12px; cursor: pointer; }
   .foot { color: var(--mut); font-size: 10.5px; margin: 16px 0 6px; text-align: center; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab { border: 1px solid var(--borda); background: var(--card2); color: var(--txt);
+    border-radius: 999px; padding: 5px 14px; cursor: pointer; font-size: 12px; }
+  .tab.act { background: var(--sel); border-color: var(--sel); color: #04121f; font-weight: 700; }
+  .tab .cnt { color: var(--mut); }
+  .tab.act .cnt { color: #0b2a40; }
+
+  .vligas { display: grid; gap: 8px; }
+  .vliga { background: var(--card); border: 1px solid var(--borda); border-radius: 10px; }
+  .vliga summary { padding: 9px 11px; cursor: pointer; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .vliga summary b { font-size: 13px; }
+  .vliga .resumo { color: var(--mut); font-size: 11.5px; }
+  .vjogos { padding: 0 11px 10px; }
+  .vjogo { border-top: 1px solid var(--borda); padding: 7px 0; }
+  .vjogo .linha1 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-weight: 700; font-size: 12.5px; }
+  .vjogo .pl { color: var(--mut); font-weight: 400; font-size: 11px; }
+  .vjogo .resultado { font-weight: 800; }
+  .vjogo .picks { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .pick-badge { font-size: 10px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--borda); }
+  .pick-badge.ok { color: var(--ok); border-color: rgba(52,211,153,.4); background: rgba(52,211,153,.08); }
+  .pick-badge.bad { color: var(--bad); border-color: rgba(248,113,113,.4); background: rgba(248,113,113,.08); }
+  .pick-badge .p { color: var(--mut); }
 </style>
 </head>
 <body>
@@ -98,43 +121,56 @@
     <div class="sub" id="sub">carregando…</div>
   </div>
 
-  <h2>Taxas de acerto <span class="n" id="meta1"></span></h2>
-  <div class="stats" id="stats"></div>
+  <nav class="tabs">
+    <button id="tab-prev" class="tab act" onclick="aba('prev')">Previsões</button>
+    <button id="tab-vivo" class="tab" onclick="aba('vivo')">Ao vivo <span class="cnt" id="vivo-n"></span></button>
+  </nav>
 
-  <div class="grid2">
-    <div>
-      <h2>Sua combinação</h2>
-      <div class="card" id="combo"></div>
-    </div>
-    <div>
-      <h2>Sugestões automáticas</h2>
-      <div class="card" id="auto"></div>
-    </div>
-  </div>
+  <section id="sec-prev">
+    <h2>Taxas de acerto <span class="n" id="meta1"></span></h2>
+    <div class="stats" id="stats"></div>
 
-  <h2>Jogos e previsões <span class="n" id="meta2"></span></h2>
-  <div class="filtro" id="filtro"></div>
-  <div class="jogos" id="jogos"></div>
-
-  <details class="odds card">
-    <summary>🎯 Calibração com odds — automática (odds ESPN embutidas nos jogos); cole outras odds para ajustar</summary>
-    <div style="margin-top:10px">
-      <div class="od">
-        <div>
-          <div class="mkt">Odds do resultado final (casa, empate, fora) — um jogo por linha: <b>1,X,2</b> <span class="n" style="color:var(--mut)">(peso=<span id="w12"></span>)</span></div>
-          <textarea id="odds12" rows="5" placeholder="1.85,3.40,4.20&#10;2.10,3.10,3.60"></textarea>
-        </div>
-        <div>
-          <div class="mkt">Odds mais/menos de 2.5 gols — um jogo por linha: <b>mais,menos</b> <span class="n" style="color:var(--mut)">(peso=<span id="w25"></span>)</span></div>
-          <textarea id="odds25" rows="5" placeholder="1.95,1.85&#10;2.40,1.55"></textarea>
-        </div>
+    <div class="grid2">
+      <div>
+        <h2>Sua combinação</h2>
+        <div class="card" id="combo"></div>
       </div>
-      <div style="margin-top:10px; display:flex; gap:8px">
-        <button class="btn" onclick="aplicarOdds()">Aplicar calibração</button>
-        <button class="btn" onclick="limparOdds()">Limpar</button>
+      <div>
+        <h2>Sugestões automáticas</h2>
+        <div class="card" id="auto"></div>
       </div>
     </div>
-  </details>
+
+    <h2>Jogos e previsões <span class="n" id="meta2"></span></h2>
+    <div class="filtro" id="filtro"></div>
+    <div class="jogos" id="jogos"></div>
+
+    <details class="odds card">
+      <summary>🎯 Calibração com odds — automática (odds ESPN embutidas nos jogos); cole outras odds para ajustar</summary>
+      <div style="margin-top:10px">
+        <div class="od">
+          <div>
+            <div class="mkt">Odds do resultado final (casa, empate, fora) — um jogo por linha: <b>1,X,2</b> <span class="n" style="color:var(--mut)">(peso=<span id="w12"></span>)</span></div>
+            <textarea id="odds12" rows="5" placeholder="1.85,3.40,4.20&#10;2.10,3.10,3.60"></textarea>
+          </div>
+          <div>
+            <div class="mkt">Odds mais/menos de 2.5 gols — um jogo por linha: <b>mais,menos</b> <span class="n" style="color:var(--mut)">(peso=<span id="w25"></span>)</span></div>
+            <textarea id="odds25" rows="5" placeholder="1.95,1.85&#10;2.40,1.55"></textarea>
+          </div>
+        </div>
+        <div style="margin-top:10px; display:flex; gap:8px">
+          <button class="btn" onclick="aplicarOdds()">Aplicar calibração</button>
+          <button class="btn" onclick="limparOdds()">Limpar</button>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <section id="sec-vivo" hidden>
+    <h2>Validação ao vivo <span class="n" id="vivo-meta"></span></h2>
+    <div class="stats" id="vivo-stats"></div>
+    <div id="vivo"></div>
+  </section>
 
   <div class="foot">Previsões do modelo (Poisson + Dixon-Coles, SOT, escanteios) · Validação walk-forward fora de amostra</div>
 </div>

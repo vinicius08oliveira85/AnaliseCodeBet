@@ -1016,6 +1016,209 @@ def calibrar(items, market):
     return res
 
 
+def picks_previsao(j, cal):
+    pr = j["prob"]
+    o = j.get("odds") or {}
+    x12 = [pr["x1"], pr["x"], pr["x2"]]
+    c12w = (cal.get("x12") or {}).get("w") or 0.0
+    if o.get("h") and o.get("d") and o.get("a"):
+        inv = [1 / o["h"], 1 / o["d"], 1 / o["a"]]
+        s = sum(inv)
+        pm = [x / s for x in inv]
+        x12 = [c12w * pm[k] + (1 - c12w) * x12[k] for k in range(3)]
+    c25w = ((cal.get("gols_over") or {}).get("2.5") or {}).get("w") or 0.0
+
+    def gol(li, side):
+        p = pr["gols_over"][li] if side == "over" else pr["gols_under"][li]
+        if li == 2 and o.get("over") and o.get("under"):
+            po = (1 / o["over"]) / (1 / o["over"] + 1 / o["under"])
+            pc = c25w * po + (1 - c25w) * pr["gols_over"][2]
+            p = pc if side == "over" else 1 - pc
+        return p
+
+    picks = []
+    for k in range(3):
+        picks.append({"tipo": "x12", "linha": k, "p": x12[k], "nome": ["Casa", "Empate", "Fora"][k]})
+    for out, sels in (("1x", (0, 1)), ("x2", (1, 2)), ("12", (0, 2))):
+        picks.append({"tipo": "dc", "linha": out, "p": x12[sels[0]] + x12[sels[1]], "nome": out.upper()})
+    for li, side in ((1.5, "over"), (3.5, "under"), (4.5, "under")):
+        p = gol(GOL_LINHAS.index(li), side)
+        picks.append({"tipo": "gols_" + side, "linha": li, "p": p,
+                      "nome": ("Mais de " if side == "over" else "Menos de ") + f"{li:g}"})
+    if pr.get("ht_over"):
+        for li, side in ((0.5, "over"), (2.5, "under")):
+            p = pr["ht_over"][HT_LINHAS.index(li)] if side == "over" else pr["ht_under"][HT_LINHAS.index(li)]
+            picks.append({"tipo": "ht_" + side, "linha": li, "p": p,
+                          "nome": ("Mais de " if side == "over" else "Menos de ") + f"{li:g}"})
+    if pr.get("esc_over"):
+        for li, side in ((7.5, "over"), (11.5, "under"), (12.5, "under")):
+            p = pr["esc_over"][ESC_LINHAS.index(li)] if side == "over" else pr["esc_under"][ESC_LINHAS.index(li)]
+            picks.append({"tipo": "esc_" + side, "linha": li, "p": p,
+                          "nome": ("Mais de " if side == "over" else "Menos de ") + f"{li:g}"})
+    return picks
+
+
+def snapshot_previsoes(data_dir, novas):
+    path = data_dir / "previsoes.json"
+    cur = {}
+    if path.exists():
+        for p in json.loads(path.read_text()):
+            cur[p["id"]] = p
+    for p in novas:
+        cur[p["id"]] = p
+    path.write_text(json.dumps(list(cur.values()), ensure_ascii=False))
+    return list(cur.values())
+
+
+def coletar_resultados(data_dir, previsoes):
+    path = data_dir / "resultados.json"
+    res = {}
+    if path.exists():
+        res = json.loads(path.read_text())
+    now = dt.datetime.now(dt.timezone.utc)
+    pendentes = []
+    for p in previsoes:
+        if not p.get("id") or p["id"] in res:
+            continue
+        try:
+            kick = dt.datetime.fromisoformat(p["data"].replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            continue
+        if kick < now:
+            pendentes.append(p)
+    for p in pendentes:
+        try:
+            s = json.loads(ov.fetch(
+                f"https://site.api.espn.com/apis/site/v2/sports/soccer/{p['espn']}/summary?event={p['id']}",
+                timeout=20))
+        except Exception:
+            continue
+        hdr = (s.get("header") or {}).get("competitions", [{}])[0]
+        if (hdr.get("status") or {}).get("type", {}).get("name") not in ("STATUS_FULL_TIME", "STATUS_FINAL"):
+            continue
+        info = {}
+        for c in hdr.get("competitors", []):
+            role = c.get("homeAway")
+            if role not in ("home", "away"):
+                continue
+            try:
+                score = int(c.get("score"))
+            except (TypeError, ValueError):
+                continue
+            ht = None
+            ls = c.get("linescores") or []
+            if ls and ls[0].get("displayValue") is not None:
+                try:
+                    ht = int(ls[0]["displayValue"])
+                except (TypeError, ValueError):
+                    pass
+            info[role] = {"score": score, "ht": ht, "nome": (c.get("team") or {}).get("displayName", "")}
+        if len(info) != 2:
+            continue
+        if ov.norm(p.get("casa", "")) and ov.norm(info["home"]["nome"]) and \
+                ov.norm(p["casa"]) != ov.norm(info["home"]["nome"]):
+            continue
+        corners = {}
+        for t in (s.get("boxscore") or {}).get("teams", []):
+            nm = (t.get("team") or {}).get("displayName", "")
+            for st in t.get("statistics", []):
+                if st.get("name") == "wonCorners":
+                    corners[nm] = int(st.get("displayValue") or 0)
+        hc = corners.get(info["home"]["nome"]) if len(corners) == 2 else None
+        ac = corners.get(info["away"]["nome"]) if len(corners) == 2 else None
+        res[p["id"]] = {"hg": info["home"]["score"], "ag": info["away"]["score"],
+                        "hhg": info["home"]["ht"], "hag": info["away"]["ht"], "hc": hc, "ac": ac}
+    if pendentes:
+        path.write_text(json.dumps(res, ensure_ascii=False))
+    return res
+
+
+THRESH_AO_VIVO = 0.70
+
+
+def pick_ok(pk, r):
+    t, li = pk["tipo"], pk["linha"]
+    if t == "x12":
+        k = 0 if r["hg"] > r["ag"] else 2 if r["hg"] < r["ag"] else 1
+        return li == k
+    if t == "dc":
+        if li == "1x":
+            return r["hg"] >= r["ag"]
+        if li == "x2":
+            return r["hg"] <= r["ag"]
+        return r["hg"] != r["ag"]
+    if t == "gols_over":
+        return r["hg"] + r["ag"] > li
+    if t == "gols_under":
+        return r["hg"] + r["ag"] < li
+    if r.get("hhg") is None or r.get("hag") is None or r.get("hc") is None or r.get("ac") is None:
+        if t.startswith("esc") or t.startswith("ht"):
+            return None
+    if t == "ht_over":
+        return r["hhg"] + r["hag"] > li
+    if t == "ht_under":
+        return r["hhg"] + r["hag"] < li
+    if t == "esc_over":
+        return r["hc"] + r["ac"] > li
+    if t == "esc_under":
+        return r["hc"] + r["ac"] < li
+    return None
+
+
+def validacao_ao_vivo(previsoes, resultados):
+    jogos = []
+    por_mercado = {}
+    por_liga = {}
+    tot = {"picks_n": 0, "hit": 0}
+    for p in previsoes:
+        r = resultados.get(p["id"])
+        if not r:
+            continue
+        game = {"liga": p["liga"], "casa": p["casa"], "fora": p["fora"], "data": p["data"],
+                "hora_br": p.get("hora_br"), "lam": p.get("lam"), "lam_esc": p.get("lam_esc"),
+                "hg": r["hg"], "ag": r["ag"], "picks": []}
+        for pk in p["picks"]:
+            if pk["p"] < THRESH_AO_VIVO:
+                continue
+            ok = pick_ok(pk, r)
+            if ok is None:
+                continue
+            game["picks"].append({"tipo": pk["tipo"], "linha": pk["linha"], "p": pk["p"],
+                                  "nome": pk["nome"], "ok": ok})
+            key = f"{pk['tipo']}_{pk['linha']:g}" if isinstance(pk["linha"], (int, float)) \
+                else f"{pk['tipo']}_{pk['linha']}"
+            pm = por_mercado.setdefault(key, {"n": 0, "hit": 0})
+            pm["n"] += 1
+            pm["hit"] += 1 if ok else 0
+            lg = por_liga.setdefault(p["liga"], {"games": 0, "picks_n": 0, "hit": 0, "por_mercado": {}})
+            lg["picks_n"] += 1
+            lg["hit"] += 1 if ok else 0
+            lpm = lg["por_mercado"].setdefault(key, {"n": 0, "hit": 0})
+            lpm["n"] += 1
+            lpm["hit"] += 1 if ok else 0
+            tot["picks_n"] += 1
+            tot["hit"] += 1 if ok else 0
+        if game["picks"]:
+            por_liga[p["liga"]]["games"] += 1
+            jogos.append(game)
+
+    def taxa(d):
+        return round(d["hit"] / d["n"], 4) if d["n"] else None
+
+    for m in por_mercado.values():
+        m["taxa"] = taxa(m)
+    ligas = []
+    for k, v in por_liga.items():
+        ligas.append({"liga": k, "games": v["games"], "picks_n": v["picks_n"], "hit": v["hit"],
+                      "taxa": round(v["hit"] / v["picks_n"], 4) if v["picks_n"] else None,
+                      "por_mercado": {kk: dict(vv, taxa=taxa(vv)) for kk, vv in v["por_mercado"].items()}})
+    ligas.sort(key=lambda x: -x["games"])
+    jogos.sort(key=lambda g: g["data"])
+    return {"n": len(jogos), "picks_n": tot["picks_n"], "hit": tot["hit"],
+            "taxa": round(tot["hit"] / tot["picks_n"], 4) if tot["picks_n"] else None,
+            "thr": THRESH_AO_VIVO, "por_mercado": por_mercado, "por_liga": ligas, "jogos": jogos}
+
+
 def fmt_br(iso):
     try:
         u = dt.datetime.fromisoformat(iso.replace("Z", "+00:00"))
@@ -1120,6 +1323,8 @@ def main():
 
     print(f"\n== Gerando JSON para o front ==")
     jogos = []
+    novas = []
+    cal_data = {"x12": cal12, "gols_over": cal_gol_over, "gols_under": cal_gol_under}
     for lg in ov.LEAGUES:
         rows = rows_all.get(lg["key"])
         if not rows:
@@ -1173,14 +1378,16 @@ def main():
             jm = joint_metrics(lam_h, lam_a, rho)
             e, h = line_probs(r["lam_c"], r["lam_ht"], ESC_LINHAS, bases)
             odds = espn_odds(lg, f, data_dir, "fixtures" in refresh)
-            jogos.append({
-                "liga": lg["nome"], "casa": f["home"], "fora": f["away"],
+            lam_esc = None if r["lam_c"] is None else round(r["lam_c"][0] + r["lam_c"][1], 2)
+            lam_ht = None if r["lam_ht"] is None else round(r["lam_ht"][0] + r["lam_ht"][1], 2)
+            jogo = {
+                "liga": lg["nome"], "id": f["id"], "casa": f["home"], "fora": f["away"],
                 "data": f["date"], "hora_br": fmt_br(f["date"]),
                 "dados": "completo" if r["full"] else "parcial",
                 "odds": odds,
                 "lam": round(lam_h + lam_a, 2),
-                "lam_ht": None if r["lam_ht"] is None else round(r["lam_ht"][0] + r["lam_ht"][1], 2),
-                "lam_esc": None if r["lam_c"] is None else round(r["lam_c"][0] + r["lam_c"][1], 2),
+                "lam_ht": lam_ht,
+                "lam_esc": lam_esc,
                 "prob": {
                     "x1": round(jm["ph"], 4), "x": round(jm["pd"], 4), "x2": round(jm["pa"], 4),
                     "gols_over": [round(v, 4) for v in jm["gols_over"]],
@@ -1190,8 +1397,20 @@ def main():
                     "esc_over": [round(v, 4) for v in e["over"]],
                     "esc_under": [round(v, 4) for v in e["under"]],
                 },
-            })
+            }
+            jogos.append(jogo)
+            if f.get("id"):
+                novas.append({"id": f["id"], "espn": lg["espn"], "liga": lg["nome"],
+                              "casa": jogo["casa"], "fora": jogo["fora"], "data": jogo["data"],
+                              "hora_br": jogo["hora_br"], "lam": jogo["lam"], "lam_esc": lam_esc,
+                              "picks": picks_previsao(jogo, cal_data)})
     jogos.sort(key=lambda j: j["data"])
+    previsoes = snapshot_previsoes(data_dir, novas)
+    resultados = coletar_resultados(data_dir, previsoes)
+    ao_vivo = validacao_ao_vivo(previsoes, resultados)
+    if ao_vivo["n"]:
+        print(f"  Ao vivo: {ao_vivo['n']} jogos finalizados, {ao_vivo['picks_n']} palpites, "
+              f"acerto {ao_vivo['taxa']:.1%}")
     out = {
         "gerado_em": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "validacao": {
@@ -1205,8 +1424,9 @@ def main():
             "esc_under": validacao(valid["esc_under"], "esc_under"),
             "base_over15": round(base_tot["h"] / base_tot["n"], 4) if base_tot["n"] else None,
         },
-        "cal": {"x12": cal12, "gols_over": cal_gol_over, "gols_under": cal_gol_under},
+        "cal": cal_data,
         "w_sot": best_w,
+        "ao_vivo": ao_vivo,
         "linhas_gols": GOL_LINHAS,
         "linhas_ht": HT_LINHAS,
         "linhas_esc": ESC_LINHAS,

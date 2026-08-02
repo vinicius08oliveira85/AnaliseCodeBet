@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 data/espn_*.json
+data/previsoes.json
+data/resultados.json
