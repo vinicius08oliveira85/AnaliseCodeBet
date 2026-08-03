@@ -103,6 +103,18 @@
 
     <section class="sec" id="sec-jogos">
       <h2>Jogos e previsões <span class="n" id="meta2"></span></h2>
+      <div class="jogos-tools">
+        <div class="search">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="busca" type="search" placeholder="Buscar time…" autocomplete="off" aria-label="Buscar time">
+        </div>
+        <div class="filtro" id="filtro-liga" aria-label="Filtrar por campeonato"></div>
+        <select id="ordena" class="sort" aria-label="Ordenar jogos" title="Ordenar jogos">
+          <option value="data">Data</option>
+          <option value="prob">Melhor chance</option>
+          <option value="liga">Campeonato</option>
+        </select>
+      </div>
       <div class="filtro" id="filtro"></div>
       <div class="jogos" id="jogos">
         <div class="skeleton" style="height:220px"></div>
@@ -117,6 +129,9 @@
     <h2>Validação ao vivo <span class="n" id="vivo-meta"></span>
       <button class="btn refresh" onclick="recarregar()" title="Recarregar dados">↻ atualizar</button>
     </h2>
+    <label class="auto-refresh" title="Recarrega o analise.json a cada 10 minutos enquanto esta seção estiver aberta">
+      <input type="checkbox" id="auto-refresh"> Atualizar a cada 10 min
+    </label>
     <div class="stats" id="vivo-stats"></div>
     <div id="vivo"></div>
   </section>
@@ -135,6 +150,19 @@
 
 <div class="foot">
   Previsões do modelo (Poisson + Dixon-Coles, SOT, escanteios) · Validação walk-forward fora de amostra
+</div>
+
+<div class="combo-bar" id="combo-bar" hidden>
+  <div class="cb-info">
+    <span class="cb-title">Combinação</span>
+    <span class="cb-n" id="cb-n"></span>
+    <span class="cb-p" id="cb-p"></span>
+  </div>
+  <div class="cb-actions">
+    <button class="btn" onclick="copiarCombo()" title="Copiar resumo da combinação">Copiar</button>
+    <button class="btn prim" onclick="irPara('sec-apostas')">Apostar</button>
+    <button class="cb-x" onclick="limparPicks()" title="Limpar combinação" aria-label="Limpar combinação">✕</button>
+  </div>
 </div>
 
 <div class="toast-wrap" id="toast" aria-live="polite" aria-atomic="false"></div>

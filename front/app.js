@@ -12,6 +12,10 @@ let statsLiga = null;
 let statsTemp = null;
 const picks = [];
 const pickSeq = {};
+let buscaLiga = null;
+let buscaTime = '';
+let ordena = 'data';
+let buscaTimer = null;
 let apostas = carregarApostas();
 const BANKROLL_KEY = 'banca';
 
@@ -208,6 +212,7 @@ function recarregar() {
       data = d;
       fillHero(d);
       renderFiltro();
+      renderFiltroLiga();
       renderStats();
       renderJogos();
       renderCombo();
@@ -304,6 +309,7 @@ function addPick(jogoIdx, tipo, li, p, label) {
   renderCombo();
   renderJogos();
   renderApostas();
+  renderComboBar();
   toast('Palpite adicionado à combinação', 'ok');
 }
 
@@ -313,6 +319,7 @@ function removePick(id) {
   renderCombo();
   renderJogos();
   renderApostas();
+  renderComboBar();
   toast('Palpite removido');
 }
 
@@ -408,17 +415,51 @@ function mktRow(j, nome, buts) {
   return `<div class="mkt-row">${label}${buts}</div>`;
 }
 
+function bestProb(g) {
+  const p = g && g.prob;
+  if (!p) return -1;
+  let m = 0;
+  const arrs = [p.x1, p.x, p.x2, p.gols_over, p.gols_under, p.ht_over, p.ht_under, p.esc_over, p.esc_under];
+  for (const a of arrs) {
+    if (!a) continue;
+    for (const v of a) if (typeof v === 'number' && v > m) m = v;
+  }
+  return m;
+}
+
+function renderFiltroLiga() {
+  const el = document.getElementById('filtro-liga');
+  if (!el || !data) return;
+  const ligas = [...new Set(data.jogos.map(g => g.liga))].sort();
+  const cnt = l => data.jogos.filter(g => g.liga === l).length;
+  el.innerHTML =
+    `<button class="${buscaLiga ? '' : 'act'}" data-liga="__all__">Todas <span class="cnt">(${data.jogos.length})</span></button>` +
+    ligas.map(l =>
+      `<button class="${buscaLiga === l ? 'act' : ''}" data-liga="${esc(l)}">${esc(l)} <span class="cnt">(${cnt(l)})</span></button>`
+    ).join('');
+}
+
 function renderJogos() {
   const el = document.getElementById('jogos');
   const liga = statsLiga || null;
-  const idxs = data.jogos
+  let idxs = data.jogos
     .map((g, i) => i)
     .filter(i => {
       const g = data.jogos[i];
       if (dataFiltro && g.data.slice(0, 10) !== dataFiltro) return false;
       if (liga && g.liga !== liga) return false;
+      if (buscaLiga && g.liga !== buscaLiga) return false;
+      if (buscaTime && !(g.casa.toLowerCase().includes(buscaTime) || g.fora.toLowerCase().includes(buscaTime))) return false;
       return true;
     });
+  if (ordena === 'prob') idxs.sort((a, b) => bestProb(data.jogos[b]) - bestProb(data.jogos[a]));
+  else if (ordena === 'liga') idxs.sort((a, b) =>
+    data.jogos[a].liga.localeCompare(data.jogos[b].liga) || data.jogos[a].data.localeCompare(data.jogos[b].data));
+  if (!idxs.length) {
+    el.innerHTML = '<div class="vazio">Nenhum jogo encontrado com esses filtros — ajuste a busca ou os filtros.</div>';
+    document.getElementById('meta2').textContent = '· 0 jogos';
+    return;
+  }
   el.innerHTML = idxs.map(j => {
     const g = data.jogos[j];
     if (!g.prob) {
@@ -511,6 +552,8 @@ function renderJogos() {
   const n = idxs.length;
   let nota = dataFiltro ? 'mostrando ' + n + ' de ' + data.jogos.length + ' jogos' : data.jogos.length + ' jogos';
   if (liga) nota += ' · campeonato: ' + liga;
+  if (buscaLiga) nota += ' · campeonato: ' + buscaLiga;
+  if (buscaTime) nota += ' · busca: "' + buscaTime + '"';
   document.getElementById('meta2').textContent = '· ' + nota + ' · clique para selecionar (✦ = maior chance do mercado)';
 }
 
@@ -548,12 +591,57 @@ function renderCombo() {
     <button class="btn" onclick="limparPicks()">Limpar combinação</button></div>`;
 }
 
+function renderComboBar() {
+  const bar = document.getElementById('combo-bar');
+  if (!bar) return;
+  const n = picks.length;
+  document.body.classList.toggle('has-combo', n > 0);
+  if (!n) { bar.hidden = true; return; }
+  const pTot = picks.reduce((a, p) => a * p.p, 1);
+  const eTot = picks.reduce((a, p) => a * p.taxa, 1);
+  document.getElementById('cb-n').textContent = n + (n > 1 ? ' palpites' : ' palpite');
+  const pEl = document.getElementById('cb-p');
+  pEl.className = 'cb-p ' + clsP(eTot);
+  pEl.textContent = 'P ' + pct(pTot) + ' · exp. ' + pct(eTot);
+  bar.hidden = false;
+}
+
+function copiarCombo() {
+  if (!picks.length) return;
+  const linhas = picks.map((p, i) => (i + 1) + '. ' + p.label + ' — P ' + pct(p.p));
+  const pTot = picks.reduce((a, p) => a * p.p, 1);
+  const txt = 'Minha combinação — Análise de Apostas\n' + linhas.join('\n') + '\nProbabilidade combinada: ' + pct(pTot);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt)
+      .then(() => toast('Combinação copiada para a área de transferência', 'ok'))
+      .catch(() => fallbackCopy(txt));
+  } else {
+    fallbackCopy(txt);
+  }
+}
+
+function fallbackCopy(txt) {
+  const ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('Combinação copiada para a área de transferência', 'ok');
+  } catch (e) {
+    toast('Não foi possível copiar automaticamente', 'err');
+  }
+  ta.remove();
+}
+
 function limparPicks() {
   picks.length = 0;
   for (const k of Object.keys(pickSeq)) delete pickSeq[k];
   renderCombo();
   renderJogos();
   renderApostas();
+  renderComboBar();
   toast('Combinação limpa');
 }
 
@@ -785,6 +873,51 @@ function removerAposta(id) {
   renderApostas();
 }
 
+// ---- Ferramentas da seção de jogos (busca, liga, ordenação) ----
+const buscaEl = document.getElementById('busca');
+const ligaEl = document.getElementById('filtro-liga');
+const ordenaEl = document.getElementById('ordena');
+if (buscaEl) {
+  buscaEl.addEventListener('input', () => {
+    clearTimeout(buscaTimer);
+    buscaTimer = setTimeout(() => { buscaTime = buscaEl.value.trim().toLowerCase(); renderJogos(); }, 120);
+  });
+  buscaEl.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') { buscaEl.value = ''; buscaTime = ''; renderJogos(); }
+  });
+}
+if (ligaEl) {
+  ligaEl.addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-liga]');
+    if (!b) return;
+    buscaLiga = b.dataset.liga === '__all__' ? null : b.dataset.liga;
+    renderFiltroLiga();
+    renderJogos();
+  });
+}
+if (ordenaEl) {
+  ordenaEl.addEventListener('change', () => { ordena = ordenaEl.value; renderJogos(); });
+}
+
+// ---- Atualização automática (seção ao vivo) ----
+let refreshTimer = null;
+const autoEl = document.getElementById('auto-refresh');
+if (autoEl) {
+  autoEl.addEventListener('change', () => {
+    if (autoEl.checked) {
+      refreshTimer = setInterval(() => {
+        const vivo = document.getElementById('sec-vivo');
+        if (!vivo || vivo.hidden) return;
+        recarregar();
+      }, 10 * 60 * 1000);
+      toast('Atualização automática a cada 10 min', 'ok');
+    } else if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  });
+}
+
 fetch('analise.json')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
   .then(d => {
@@ -798,6 +931,7 @@ fetch('analise.json')
     document.getElementById('meta1').textContent = '· validação fora de amostra';
     fillHero(d);
     renderFiltro();
+    renderFiltroLiga();
     renderStatsSel();
     renderStats();
     renderJogos();
