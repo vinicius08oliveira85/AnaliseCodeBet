@@ -12,6 +12,15 @@ let statsLiga = null;
 let statsTemp = null;
 const picks = [];
 const pickSeq = {};
+let apostas = carregarApostas();
+
+function carregarApostas() {
+  try { return JSON.parse(localStorage.getItem('apostas') || '[]'); }
+  catch (e) { return []; }
+}
+function salvarApostas() {
+  localStorage.setItem('apostas', JSON.stringify(apostas));
+}
 
 function pct(x) { return (100 * x).toFixed(1) + '%'; }
 function clsP(x) { return x >= 0.75 ? 'ok' : x >= 0.6 ? 'med' : 'bad'; }
@@ -75,10 +84,13 @@ function setFiltro(key) {
 function aba(nome) {
   document.getElementById('sec-prev').hidden = nome !== 'prev';
   document.getElementById('sec-vivo').hidden = nome !== 'vivo';
+  document.getElementById('sec-apostas').hidden = nome !== 'apostas';
   const tp = document.getElementById('tab-prev');
   if (tp) tp.classList.toggle('act', nome === 'prev');
   const tv = document.getElementById('tab-vivo');
   if (tv) tv.classList.toggle('act', nome === 'vivo');
+  const ta = document.getElementById('tab-apostas');
+  if (ta) ta.classList.toggle('act', nome === 'apostas');
 }
 
 function setMenuAtivo(id) {
@@ -89,15 +101,17 @@ function irPara(id) {
   const el = document.getElementById(id);
   if (!el) return;
   const vivo = document.getElementById('sec-vivo');
+  const apostas = document.getElementById('sec-apostas');
   if (id === 'sec-vivo' && vivo.hidden) aba('vivo');
-  else if (id !== 'sec-vivo' && !vivo.hidden) aba('prev');
+  else if (id === 'sec-apostas' && apostas.hidden) aba('apostas');
+  else if (id !== 'sec-vivo' && id !== 'sec-apostas' && (!vivo.hidden || !apostas.hidden)) aba('prev');
   setMenuAtivo(id);
   setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
 }
 
 function initSpy() {
   if (!('IntersectionObserver' in window)) return;
-  const secs = ['sec-taxas', 'sec-combo', 'sec-auto', 'sec-jogos', 'sec-vivo']
+  const secs = ['sec-taxas', 'sec-combo', 'sec-auto', 'sec-jogos', 'sec-vivo', 'sec-apostas']
     .map(id => document.getElementById(id)).filter(Boolean);
   const obs = new IntersectionObserver(es => {
     for (const e of es) if (e.isIntersecting) setMenuAtivo(e.target.id);
@@ -414,7 +428,8 @@ function renderCombo() {
       <div><span class="lbl">Expectativa pela validação</span><b class="p ${clsP(eTot)}">${pct(eTot)}</b>
         <span class="badge big ${badge}">${rot}</span></div>
     </div>
-    <div style="margin-top:10px"><button class="btn" onclick="limparPicks()">Limpar combinação</button></div>`;
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn prim" onclick="irPara('sec-apostas')">Apostar nesta combinação</button>
+    <button class="btn" onclick="limparPicks()">Limpar combinação</button></div>`;
 }
 
 function limparPicks() {
@@ -499,6 +514,122 @@ function aplicarAuto(k) {
   for (const m of c.ms) addPick(m.i, m.best.tipo, m.best.li, m.best.p, m.best.nome);
 }
 
+function pickOk(pk, r) {
+  const t = pk.tipo, li = pk.linha;
+  if (t === 'x12') {
+    const k = r.hg > r.ag ? 0 : r.hg < r.ag ? 2 : 1;
+    return li === k;
+  }
+  if (t === 'dc') {
+    if (li === '1x') return r.hg >= r.ag;
+    if (li === 'x2') return r.hg <= r.ag;
+    return r.hg !== r.ag;
+  }
+  if (t === 'gols_over') return r.hg + r.ag > li;
+  if (t === 'gols_under') return r.hg + r.ag < li;
+  if (r.hhg == null || r.hag == null || r.hc == null || r.ac == null) {
+    if (t.startsWith('esc') || t.startsWith('ht')) return null;
+  }
+  if (t === 'ht_over') return r.hhg + r.hag > li;
+  if (t === 'ht_under') return r.hhg + r.hag < li;
+  if (t === 'esc_over') return r.hc + r.ac > li;
+  if (t === 'esc_under') return r.hc + r.ac < li;
+  return null;
+}
+
+function avaliarAposta(a) {
+  const res = a.picks.map(pk => {
+    const r = data.resultados && data.resultados[pk.id];
+    if (!r) return { ...pk, ok: null };
+    return { ...pk, ok: pickOk(pk, r) };
+  });
+  const pendente = res.some(p => p.ok === null);
+  const ganhou = !pendente && res.every(p => p.ok === true);
+  return { res, pendente, ganhou };
+}
+
+function renderApostas() {
+  const el = document.getElementById('apostas');
+  const nEl = document.getElementById('apostas-n');
+  const mn = document.getElementById('menu-apostas');
+  if (!el) return;
+  nEl.textContent = apostas.length ? '· ' + apostas.length + (apostas.length > 1 ? ' apostas' : ' aposta') : '';
+  if (mn) mn.textContent = apostas.length ? String(apostas.length) : '';
+  const nova = !picks.length ? '<div class="vazio">Selecione palpites nos jogos (✦ = melhor chance) para montar a combinação e depois apostar.</div>' : `
+    <div class="card">
+      <h3>Nova aposta</h3>
+      <div class="combo-list">${picks.map((p, i) => `
+        <div class="combo-item">
+          <span class="cix">${i + 1}</span>
+          <div class="nome">${p.label}</div>
+          <span class="p ${clsP(p.taxa)}">${pct(p.taxa)}</span>
+        </div>`).join('')}</div>
+      <div class="ap-form">
+        <label>Odd da aposta
+          <input id="ap-odd" type="number" step="0.01" min="1.01" placeholder="ex.: 2.50">
+        </label>
+        <label>Valor (R$)
+          <input id="ap-valor" type="number" step="0.50" min="0.50" placeholder="ex.: 10">
+        </label>
+        <button class="btn prim" onclick="registrarAposta()">Apostar</button>
+      </div>
+    </div>`;
+  if (!apostas.length) {
+    el.innerHTML = nova + '<div class="vazio">Nenhuma aposta registrada ainda. Suas apostas ficam salvas neste navegador e o resultado é atualizado quando você rodar o pipeline e recarregar.</div>';
+    return;
+  }
+  const retorno = a => a.ganhou ? (a.odd * a.valor).toFixed(2) : null;
+  el.innerHTML = nova + '<div class="ap-lista">' + apostas.slice().reverse().map((a, i) => {
+    const av = avaliarAposta(a);
+    const badge = a.ganhou ? 'ok' : av.pendente ? 'med' : 'bad';
+    const rot = a.ganhou ? 'GANHOU' : av.pendente ? 'PENDENTE' : 'PERDEU';
+    const r = a.ganhou ? a.odd * a.valor : 0;
+    const pks = av.res.map(p =>
+      `<span class="pick-badge ${p.ok === true ? 'ok' : p.ok === false ? 'bad' : ''}">
+        <span class="ic">${p.ok === null ? '…' : ico(p.ok ? 'check' : 'cross', 9)}</span>
+        ${esc(p.nome)} <span class="p">${pct(p.p)}</span></span>`).join('');
+    return `<div class="card ap">
+      <div class="ap-head">
+        <span class="badge ${badge}">${rot}</span>
+        <span class="ap-odd">odd ${a.odd.toFixed(2)}</span>
+        <span class="ap-valor">R$ ${a.valor.toFixed(2)}</span>
+        <span class="ap-ret">retorno <b class="${a.ganhou ? 'ok' : ''}">R$ ${a.ganhou ? r.toFixed(2) : '—'}</b></span>
+        <button class="x" onclick="removerAposta('${a.id}')" title="Excluir aposta">✕</button>
+      </div>
+      <div class="picks">${pks}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function registrarAposta() {
+  if (!picks.length) return;
+  const odd = parseFloat(document.getElementById('ap-odd').value);
+  const valor = parseFloat(document.getElementById('ap-valor').value);
+  if (!(odd > 1)) { alert('Informe a odd da aposta (ex.: 2.50).'); return; }
+  if (!(valor > 0)) { alert('Informe o valor apostado (R$).'); return; }
+  const a = {
+    id: 'ap' + Date.now().toString(36),
+    criada: new Date().toISOString(),
+    odd, valor,
+    picks: picks.map(p => {
+      const g = data.jogos[p.jogoIdx];
+      return { id: g.id, casa: g.casa, fora: g.fora, tipo: p.tipo, linha: p.linha, p: p.p, nome: p.label };
+    }),
+  };
+  apostas.push(a);
+  salvarApostas();
+  limparPicks();
+  renderCombo();
+  renderJogos();
+  renderApostas();
+}
+
+function removerAposta(id) {
+  apostas = apostas.filter(a => a.id !== id);
+  salvarApostas();
+  renderApostas();
+}
+
 fetch('analise.json')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
   .then(d => {
@@ -517,6 +648,7 @@ fetch('analise.json')
     renderCombo();
     autoCombos();
     renderAoVivo();
+    renderApostas();
     initSpy();
   })
   .catch(e => {

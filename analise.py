@@ -1287,6 +1287,7 @@ def main():
         },
         "w_sot": best_w,
         "ao_vivo": ao_vivo,
+        "resultados": resultados,
         "linhas_gols": GOL_LINHAS,
         "linhas_ht": HT_LINHAS,
         "linhas_esc": ESC_LINHAS,

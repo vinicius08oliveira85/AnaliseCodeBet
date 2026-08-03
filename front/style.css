@@ -340,7 +340,40 @@ textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3
 .pick-badge.bad { color: var(--bad); border-color: rgba(251, 113, 133, .35); background: rgba(251, 113, 133, .08); }
 .pick-badge .p { color: var(--mut); font-weight: 500; font-variant-numeric: tabular-nums; }
 
-/* ---------- Misc ---------- */
+/* ---------- Apostas ---------- */
+.ap-form {
+  margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+}
+.ap-form label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 10.5px; font-weight: 700; color: var(--mut);
+}
+.ap-form input {
+  width: 120px; background: var(--surface2); color: var(--txt);
+  border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
+  font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.ap-form input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56, 189, 248, .15); }
+.ap-lista { margin-top: 16px; display: grid; gap: 10px; }
+.ap-head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.ap-head .ap-odd { color: var(--accent); }
+.ap-head .ap-valor { color: var(--mut); font-weight: 600; }
+.ap-ret b { color: var(--mut); }
+.ap-ret b.ok { color: var(--ok); }
+.ap-head .x { margin-left: auto; }
+.ap-ret { margin-left: 2px; }
+.ap .picks { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 5px; }
+
+@media (max-width: 700px) {
+  .ap-form label { flex: 1 1 100px; }
+  .ap-form input { width: 100%; }
+  .ap-head .ap-ret { width: 100%; }
+}
+
+
 .foot {
   color: var(--mut); font-size: 10.5px; margin: 18px 0 8px; text-align: center;
   border-top: 1px solid var(--border); padding-top: 12px;

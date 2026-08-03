@@ -118,6 +118,13 @@ class TestFrontJson(unittest.TestCase):
         for k in ("n", "picks_n", "hit", "thr", "por_mercado", "por_liga"):
             self.assertIn(k, av)
 
+    def test_resultados_key(self):
+        self.assertIn("resultados", self.data)
+        res = self.data["resultados"]
+        for r in res.values():
+            for k in ("hg", "ag", "hhg", "hag", "hc", "ac"):
+                self.assertIn(k, r)
+
 
 class TestAoVivo(unittest.TestCase):
     def test_picks_previsao(self):
