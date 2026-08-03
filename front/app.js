@@ -46,13 +46,25 @@ function rotuloData(iso) {
   return dias[d.getUTCDay()] + ', ' + String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0');
 }
 
+const DIA_ABV = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const MES_ABV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
 function renderFiltro() {
   const el = document.getElementById('filtro');
   const dias = [...new Set(data.jogos.map(g => g.data.slice(0, 10)))].sort();
   const cnt = d => data.jogos.filter(g => g.data.slice(0, 10) === d).length;
-  const btn = (key, label) => `<button class="${dataFiltro === key ? 'act' : ''}" onclick="setFiltro('${key}')">${label}</button>`;
-  el.innerHTML = btn('', 'Todos <span class="cnt">(' + data.jogos.length + ')</span>') +
-    dias.map(d => btn(d, rotuloData(d) + ' <span class="cnt">(' + cnt(d) + ')</span>')).join('');
+  const diaTile = (key, iso, n) => {
+    const d = new Date(iso);
+    const dow = DIA_ABV[d.getUTCDay()];
+    const day = String(d.getUTCDate());
+    const mon = MES_ABV[d.getUTCMonth()];
+    return `<button class="${dataFiltro === key ? 'act' : ''} dt" onclick="setFiltro('${key}')">
+      <span class="dow">${dow}</span><b class="day">${day}</b>
+      <span class="mon">${mon}</span><span class="cnt">${n}</span></button>`;
+  };
+  el.innerHTML = `<button class="${dataFiltro ? '' : 'act'}" onclick="setFiltro('')">Todos
+      <span class="cnt">(${data.jogos.length})</span></button>` +
+    dias.map(d => diaTile(d, d, cnt(d))).join('');
 }
 
 function setFiltro(key) {
