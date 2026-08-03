@@ -12,7 +12,6 @@ let statsLiga = null;
 let statsTemp = null;
 const picks = [];
 const pickSeq = {};
-const calP = {};
 
 function pct(x) { return (100 * x).toFixed(1) + '%'; }
 function clsP(x) { return x >= 0.75 ? 'ok' : x >= 0.6 ? 'med' : 'bad'; }
@@ -98,7 +97,7 @@ function irPara(id) {
 
 function initSpy() {
   if (!('IntersectionObserver' in window)) return;
-  const secs = ['sec-taxas', 'sec-combo', 'sec-auto', 'sec-jogos', 'sec-calib', 'sec-vivo']
+  const secs = ['sec-taxas', 'sec-combo', 'sec-auto', 'sec-jogos', 'sec-vivo']
     .map(id => document.getElementById(id)).filter(Boolean);
   const obs = new IntersectionObserver(es => {
     for (const e of es) if (e.isIntersecting) setMenuAtivo(e.target.id);
@@ -174,11 +173,10 @@ function liIdx(tipo, li) {
 
 function pv(jogoIdx, tipo, li) {
   const pr = data.jogos[jogoIdx].prob;
-  const c = calP[jogoIdx];
-  if (tipo === 'x12') return c && c.x12 ? c.x12[li] : [pr.x1, pr.x, pr.x2][li];
+  if (tipo === 'x12') return [pr.x1, pr.x, pr.x2][li];
   const idx = liIdx(tipo, li);
-  if (tipo === 'gols_over') return c && c.g25 && idx === 2 ? c.g25.over : pr.gols_over[idx];
-  if (tipo === 'gols_under') return c && c.g25 && idx === 2 ? c.g25.under : pr.gols_under[idx];
+  if (tipo === 'gols_over') return pr.gols_over[idx];
+  if (tipo === 'gols_under') return pr.gols_under[idx];
   if (tipo === 'ht_over') return pr.ht_over[idx];
   if (tipo === 'ht_under') return pr.ht_under[idx];
   if (tipo === 'esc_over') return pr.esc_over[idx];
@@ -258,22 +256,20 @@ function rotuloTemp(s) {
 
 function renderStats() {
   const v = data.validacao;
-  const cal = data.cal || {};
-  let vv = v, cc = cal, nome = null;
+  let vv = v, nome = null;
   if (statsLiga && statsTemp) {
     const s = v.por_liga[statsLiga] && v.por_liga[statsLiga].por_temporada[statsTemp];
-    if (s) { vv = s.validacao; cc = s.cal; nome = statsLiga + ' · ' + rotuloTemp(statsTemp); }
+    if (s) { vv = s.validacao; nome = statsLiga + ' · ' + rotuloTemp(statsTemp); }
   } else if (statsLiga) {
     const s = v.por_liga[statsLiga];
-    if (s) { vv = s.validacao; cc = s.cal; nome = statsLiga; }
+    if (s) { vv = s.validacao; nome = statsLiga; }
   } else if (statsTemp) {
     const s = v.por_temporada[statsTemp];
-    if (s) { vv = s.validacao; cc = s.cal; nome = rotuloTemp(statsTemp); }
+    if (s) { vv = s.validacao; nome = rotuloTemp(statsTemp); }
   }
   document.getElementById('meta1').textContent = '· validação fora de amostra' + (nome ? ' — ' + nome : '');
   const cards = [
     ['Resultado (probabilidade ≥ 75%)', vv.x12['0.75'], ''],
-    ['Resultado + odds', cc.x12 && cc.x12.taxa ? { taxa: cc.x12.taxa, n: cc.x12.n } : null, 'cal'],
     ['Dupla chance 1X (≥ 75%)', vv.dc && vv.dc['1x'] && vv.dc['1x']['0.75'], ''],
     ['Dupla chance X2 (≥ 75%)', vv.dc && vv.dc['x2'] && vv.dc['x2']['0.75'], ''],
     ['Gols: mais de 1.5', vv.gols_over['1.5'], ''],
@@ -367,7 +363,6 @@ function renderJogos() {
         <div class="teams"><b>${esc(g.casa)}</b> <span class="vs">×</span> <b>${esc(g.fora)}</b></div>
         <div class="mc-actions">
           <span class="badge ${g.dados === 'completo' ? 'ok' : 'med'}">${g.dados}</span>
-          ${calP[j] ? '<span class="badge cal">com odds</span>' : ''}
         </div>
       </div>
       <div class="mc-meta">
@@ -504,64 +499,6 @@ function aplicarAuto(k) {
   for (const m of c.ms) addPick(m.i, m.best.tipo, m.best.li, m.best.p, m.best.nome);
 }
 
-function buildCal(g, o) {
-  const c12 = (data.cal && data.cal.x12) || { w: 0 };
-  const c25 = (data.cal && data.cal.gols_over && data.cal.gols_over['2.5']) || { w: 0 };
-  const cp = {};
-  if (o && o.h && o.d && o.a) {
-    const inv = [1 / o.h, 1 / o.d, 1 / o.a];
-    const s = inv.reduce((a, b) => a + b, 0);
-    const pm = inv.map(x => x / s);
-    const po = [g.prob.x1, g.prob.x, g.prob.x2];
-    cp.x12 = pm.map((a, k) => c12.w * a + (1 - c12.w) * po[k]);
-  }
-  if (o && o.over && o.under) {
-    const po = (1 / o.over) / (1 / o.over + 1 / o.under);
-    cp.g25 = {
-      over: c25.w * po + (1 - c25.w) * g.prob.gols_over[2],
-      under: 1 - (c25.w * po + (1 - c25.w) * g.prob.gols_over[2]),
-    };
-  }
-  return Object.keys(cp).length ? cp : null;
-}
-
-function autoCal() {
-  data.jogos.forEach((g, i) => { calP[i] = g.odds ? buildCal(g, g.odds) : null; });
-}
-
-function aplicarOdds() {
-  const l12 = document.getElementById('odds12').value.trim();
-  const l25 = document.getElementById('odds25').value.trim();
-  const o12 = l12 ? l12.split('\n')
-    .map(s => s.split(',').map(x => parseFloat(x.trim())))
-    .filter(r => r.length === 3 && r.every(x => x > 1)) : [];
-  const o25 = l25 ? l25.split('\n')
-    .map(s => s.split(',').map(x => parseFloat(x.trim())))
-    .filter(r => r.length === 2 && r.every(x => x > 1)) : [];
-  data.jogos.forEach((g, i) => {
-    if (o12[i] || o25[i]) {
-      const o = {
-        h: o12[i] ? o12[i][0] : null, d: o12[i] ? o12[i][1] : null, a: o12[i] ? o12[i][2] : null,
-        over: o25[i] ? o25[i][0] : null, under: o25[i] ? o25[i][1] : null,
-      };
-      const cp = buildCal(g, o);
-      calP[i] = cp || (g.odds ? buildCal(g, g.odds) : null);
-    } else if (g.odds) {
-      calP[i] = buildCal(g, g.odds);
-    }
-  });
-  renderJogos();
-  autoCombos();
-}
-
-function limparOdds() {
-  document.getElementById('odds12').value = '';
-  document.getElementById('odds25').value = '';
-  autoCal();
-  renderJogos();
-  autoCombos();
-}
-
 fetch('analise.json')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
   .then(d => {
@@ -569,18 +506,10 @@ fetch('analise.json')
     const q = d.jogos.length;
     const gerado = new Date(d.gerado_em).toLocaleString('pt-BR',
       { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    const nOdds = d.jogos.filter(g => g.odds).length;
     document.getElementById('sub').classList.remove('erro');
     document.getElementById('sub').textContent =
-      'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot +
-      (nOdds ? ' · odds da ESPN embutidas em ' + nOdds + ' jogos' : '');
+      'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot;
     document.getElementById('meta1').textContent = '· validação fora de amostra';
-    if (d.cal && d.cal.x12) {
-      document.getElementById('w12').textContent = d.cal.x12.w.toFixed(2);
-      document.getElementById('w25').textContent =
-        (d.cal.gols_over && d.cal.gols_over['2.5']) ? d.cal.gols_over['2.5'].w.toFixed(2) : '—';
-    }
-    autoCal();
     renderFiltro();
     renderStatsSel();
     renderStats();

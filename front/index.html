@@ -45,10 +45,6 @@
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
       Jogos e previsões
     </button>
-    <button class="menu-item" data-sec="sec-calib" onclick="irPara('sec-calib')">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>
-      Calibração
-    </button>
     <span class="menu-sep" aria-hidden="true"></span>
     <button class="menu-item" data-sec="sec-vivo" onclick="irPara('sec-vivo')">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="12" height="12" rx="3"/><path d="M18 10h2.5a1.5 1.5 0 0 1 0 3H18"/><path d="M20 14v.01"/></svg>
@@ -94,29 +90,6 @@
         <div class="skeleton" style="height:220px"></div>
       </div>
     </section>
-
-    <details class="odds card sec" id="sec-calib" style="margin-top:14px">
-      <summary>
-        <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8 7 17M17 7l2.8-2.8"/></svg>
-        Calibração com odds — automática (odds ESPN embutidas nos jogos); cole outras odds para ajustar
-      </summary>
-      <div style="margin-top:12px">
-        <div class="od">
-          <div>
-            <div class="mkt">Odds do resultado final (casa, empate, fora) — um jogo por linha: <b>1, X, 2</b> <span style="color:var(--mut)">(peso=<span id="w12"></span>)</span></div>
-            <textarea id="odds12" rows="5" placeholder="1.85,3.40,4.20&#10;2.10,3.10,3.60"></textarea>
-          </div>
-          <div>
-            <div class="mkt">Odds mais/menos de 2.5 gols — um jogo por linha: <b>mais, menos</b> <span style="color:var(--mut)">(peso=<span id="w25"></span>)</span></div>
-            <textarea id="odds25" rows="5" placeholder="1.95,1.85&#10;2.40,1.55"></textarea>
-          </div>
-        </div>
-        <div style="margin-top:12px; display:flex; gap:8px">
-          <button class="btn prim" onclick="aplicarOdds()">Aplicar calibração</button>
-          <button class="btn" onclick="limparOdds()">Limpar</button>
-        </div>
-      </div>
-    </details>
   </section>
 
   <section class="sec" id="sec-vivo" hidden>

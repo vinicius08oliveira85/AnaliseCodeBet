@@ -120,9 +120,8 @@ class TestFrontJson(unittest.TestCase):
 
 
 class TestAoVivo(unittest.TestCase):
-    def test_picks_previsao_cal_com_odds(self):
-        cal = {"x12": {"w": 0.5}, "gols_over": {"2.5": {"w": 0.4}}, "gols_under": {}}
-        j = {"liga": "T", "odds": {"h": 2.0, "d": 3.5, "a": 3.8, "over": 1.9, "under": 1.9},
+    def test_picks_previsao(self):
+        j = {"liga": "T",
              "prob": {"x1": 0.45, "x": 0.28, "x2": 0.27,
                       "gols_over": [0.9, 0.7, 0.55, 0.35, 0.2, 0.1],
                       "gols_under": [0.1, 0.3, 0.45, 0.65, 0.8, 0.9],
@@ -130,7 +129,7 @@ class TestAoVivo(unittest.TestCase):
                       "ht_under": [0.25, 0.6, 0.8, 0.9],
                       "esc_over": [0.85, 0.75, 0.62, 0.5, 0.38, 0.3],
                       "esc_under": [0.15, 0.25, 0.38, 0.5, 0.62, 0.7]}}
-        picks = an.picks_previsao(j, cal)
+        picks = an.picks_previsao(j)
         tipos = {p["tipo"] for p in picks}
         self.assertIn("x12", tipos)
         self.assertIn("dc", tipos)
@@ -142,7 +141,6 @@ class TestAoVivo(unittest.TestCase):
         self.assertEqual(dcs, {"1x", "x2", "12"})
 
     def test_validacao_ao_vivo(self):
-        cal = {"x12": {"w": 0.5}, "gols_over": {}, "gols_under": {}}
         j = {"liga": "T", "casa": "A", "fora": "B", "odds": None,
              "prob": {"x1": 0.45, "x": 0.28, "x2": 0.27,
                       "gols_over": [0.9, 0.7, 0.55, 0.35, 0.2, 0.1],
@@ -152,7 +150,7 @@ class TestAoVivo(unittest.TestCase):
                       "esc_over": [0.85, 0.75, 0.62, 0.5, 0.38, 0.3],
                       "esc_under": [0.15, 0.25, 0.38, 0.5, 0.62, 0.7]}}
         prevs = [{"id": "1", "liga": "T", "casa": "A", "fora": "B",
-                  "data": "2026-07-01T19:00:00Z", "picks": an.picks_previsao(j, cal)}]
+                  "data": "2026-07-01T19:00:00Z", "picks": an.picks_previsao(j)}]
         res = {"1": {"hg": 2, "ag": 1, "hhg": 1, "hag": 0, "hc": 6, "ac": 8}}
         av = an.validacao_ao_vivo(prevs, res)
         self.assertEqual(av["n"], 1)

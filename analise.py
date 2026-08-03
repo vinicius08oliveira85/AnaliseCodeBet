@@ -62,10 +62,7 @@ def load_rows(data_dir, refresh):
                     rows.append({"date": d, "season": r["Season"], "home": r["Home"], "away": r["Away"],
                                  "hg": hg, "ag": ag,
                                  "hhg": None, "hag": None, "hst": None, "ast": None,
-                                 "hc": None, "ac": None,
-                                 "o_h": ov._float(r.get("AvgCH")), "o_d": ov._float(r.get("AvgCD")),
-                                 "o_a": ov._float(r.get("AvgCA")), "o_lines": {},
-                                 "over": None, "under": None})
+                                 "hc": None, "ac": None})
         elif lg.get("espn_only"):
             print(f"  {lg['nome']}: buscando histórico na ESPN (1ª vez demora)...")
             rows = espn_cup_history(data_dir, refresh_cdb)
@@ -91,16 +88,7 @@ def load_rows(data_dir, refresh):
                                      "hg": hg, "ag": ag,
                                      "hhg": _goals(r.get("HTHG")), "hag": _goals(r.get("HTAG")),
                                      "hst": _goals(r.get("HST")), "ast": _goals(r.get("AST")),
-                                     "hc": ov._float(r.get("HC")), "ac": ov._float(r.get("AC")),
-                                     "o_h": ov._float(r.get("AvgH")), "o_d": ov._float(r.get("AvgD")),
-                                     "o_a": ov._float(r.get("AvgA")),
-                                     "o_lines": {
-                                         "2.5": (ov._float(r.get("AvgC>2.5")), ov._float(r.get("AvgC<2.5"))),
-                                         "3.5": (ov._float(r.get("AvgC>3.5")), ov._float(r.get("AvgC<3.5"))),
-                                         "4.5": (ov._float(r.get("AvgC>4.5")), ov._float(r.get("AvgC<4.5"))),
-                                         "5.5": (ov._float(r.get("AvgC>5.5")), ov._float(r.get("AvgC<5.5"))),
-                                     },
-                                     "over": ov._float(r.get("AvgC>2.5")), "under": ov._float(r.get("AvgC<2.5"))})
+                                     "hc": ov._float(r.get("HC")), "ac": ov._float(r.get("AC"))})
         rows.sort(key=lambda m: (m["date"], m["season"]))
         rows_by_league[lg["key"]] = rows
     return rows_by_league
@@ -185,63 +173,6 @@ def espn_bra_corners(data_dir, refresh):
         print()
     cache.write_text(json.dumps(events, ensure_ascii=False))
     return events
-
-
-def _dec_odds(am):
-    if am is None:
-        return None
-    try:
-        v = int(am)
-    except (TypeError, ValueError):
-        return None
-    if v > 0:
-        return round(1.0 + 100.0 / v, 4)
-    if v < 0:
-        return round(1.0 + 100.0 / (-v), 4)
-    return None
-
-
-def _odds_at(node, *keys):
-    for k in keys:
-        if not isinstance(node, dict):
-            return None
-        node = node.get(k)
-    return node
-
-
-def espn_odds(lg, f, data_dir, refresh):
-    eid = f.get("id")
-    if not eid:
-        return None
-    cache = data_dir / f"espn_odds_{lg['espn']}.json"
-    odds = {}
-    if cache.exists():
-        try:
-            odds = json.loads(cache.read_text())
-        except Exception:
-            odds = {}
-    if eid in odds and not refresh:
-        return odds[eid]
-    try:
-        s = json.loads(ov.fetch(
-            f"https://site.api.espn.com/apis/site/v2/sports/soccer/{lg['espn']}/summary?event={eid}",
-            timeout=20))
-    except Exception as e:
-        print(f"  ! falha odds {lg['nome']} ({f.get('home', '')} x {f.get('away', '')}): {e}")
-        return None
-    pc = (s.get("pickcenter") or [{}])[0]
-    o = {
-        "h": _dec_odds(_odds_at(pc, "moneyline", "home", "close", "odds")),
-        "d": _dec_odds(_odds_at(pc, "moneyline", "draw", "close", "odds")),
-        "a": _dec_odds(_odds_at(pc, "moneyline", "away", "close", "odds")),
-        "over": _dec_odds(_odds_at(pc, "total", "over", "close", "odds")),
-        "under": _dec_odds(_odds_at(pc, "total", "under", "close", "odds")),
-    }
-    if not (o["h"] and o["d"] and o["a"]):
-        return None
-    odds[eid] = o
-    cache.write_text(json.dumps(odds))
-    return o
 
 
 def espn_cup_history(data_dir, refresh):
@@ -352,8 +283,6 @@ def espn_cup_history(data_dir, refresh):
             "hg": info[hid]["score"], "ag": info[aid]["score"],
             "hhg": info[hid]["ht"], "hag": info[aid]["ht"],
             "hst": None, "ast": None, "hc": None, "ac": None,
-            "o_h": None, "o_d": None, "o_a": None, "o_lines": {},
-            "over": None, "under": None,
         })
     if total_e > 1:
         print()
@@ -815,7 +744,6 @@ def backtest_all(rows, tune_season, rho, w_sot=0.0, liga=None):
                        "home": m["home"], "away": m["away"], "liga": liga,
                        "hg": m["hg"], "ag": m["ag"],
                        "hhg": m["hhg"], "hag": m["hag"], "hc": m["hc"], "ac": m["ac"],
-                       "o_h": m["o_h"], "o_d": m["o_d"], "o_a": m["o_a"], "o_lines": m["o_lines"],
                        "lam": lam_h + lam_a, "lamc": r["lam_c"], "lam_ht": r["lam_ht"]}
                 jm = joint_metrics(lam_h, lam_a, rho)
                 rec["ph"], rec["pd"], rec["pa"] = jm["ph"], jm["pd"], jm["pa"]
@@ -935,87 +863,6 @@ def validacao_dc(items, min_n=30):
     return res
 
 
-def calibrar(items, market):
-    res = {}
-    if market == "x12":
-        sel = [x for x in items if x["o_h"] and x["o_d"] and x["o_a"]]
-        if len(sel) < 200:
-            return res
-
-        def pred(w, x):
-            pm = [1.0 / x["o_h"], 1.0 / x["o_d"], 1.0 / x["o_a"]]
-            s = sum(pm)
-            pm = [p / s for p in pm]
-            po = [x["ph"], x["pd"], x["pa"]]
-            return [w * a + (1 - w) * b for a, b in zip(pm, po)]
-
-        def outcome(x):
-            if x["hg"] > x["ag"]:
-                return 0
-            if x["hg"] == x["ag"]:
-                return 1
-            return 2
-
-        def brier(w):
-            tot = 0.0
-            for x in sel:
-                p = pred(w, x)
-                k = outcome(x)
-                tot += (1 - p[k]) ** 2 + sum(p[j] ** 2 for j in range(3) if j != k)
-            return tot / len(sel)
-
-        best_w, best_b = 0.0, 1e18
-        w = 0.0
-        while w <= 1.001:
-            b = brier(w)
-            if b < best_b:
-                best_b, best_w = b, w
-            w += 0.05
-        sel75 = [x for x in sel if max(pred(best_w, x)) >= 0.75]
-        ok = sum(1 for x in sel75 if outcome(x) == pred(best_w, x).index(max(pred(best_w, x))))
-        res = {"w": round(best_w, 2), "taxa": ok / len(sel75), "n": len(sel75), "brier": best_b}
-        return res
-
-    if market.startswith("gols"):
-        for li, l in enumerate(GOL_LINHAS):
-            kl = f"{l:g}"
-            if kl not in ("2.5", "3.5", "4.5", "5.5"):
-                continue
-            sel = [x for x in items if x["o_lines"].get(kl)
-                   and x["o_lines"][kl][0] and x["o_lines"][kl][1]]
-            if len(sel) < 200:
-                continue
-
-            def pred(w, x):
-                ov_, un = x["o_lines"][kl]
-                po = (1.0 / ov_) / (1.0 / ov_ + 1.0 / un)
-                return w * po + (1 - w) * x["gols"]["over"][li]
-
-            def brier(w):
-                tot = 0.0
-                for x in sel:
-                    hit = 1.0 if x["hg"] + x["ag"] >= int(l) + 1 else 0.0
-                    tot += (hit - pred(w, x)) ** 2
-                return tot / len(sel)
-
-            best_w, best_b = 0.0, 1e18
-            w = 0.0
-            while w <= 1.001:
-                b = brier(w)
-                if b < best_b:
-                    best_b, best_w = b, w
-                w += 0.05
-            if market.endswith("over"):
-                sel_pick = [x for x in sel if pred(best_w, x) >= 0.85]
-                ok = sum(1 for x in sel_pick if x["hg"] + x["ag"] >= int(l) + 1)
-            else:
-                sel_pick = [x for x in sel if 1 - pred(best_w, x) >= 0.85]
-                ok = sum(1 for x in sel_pick if x["hg"] + x["ag"] <= int(l))
-            res[kl] = {"w": round(best_w, 2), "taxa": ok / len(sel_pick) if sel_pick else 0.0,
-                       "n": len(sel_pick)}
-    return res
-
-
 def bloco_validacao(sub, min_n=30):
     xs = sub["x12"]
     base = {"n": len(xs), "h": sum(1 for x in xs if x["hg"] + x["ag"] > 1.5)}
@@ -1033,9 +880,6 @@ def bloco_validacao(sub, min_n=30):
             "esc_under": validacao(sub["esc_under"], "esc_under", min_n),
             "base_over15": round(base["h"] / base["n"], 4) if base["n"] else None,
         },
-        "cal": {"x12": calibrar(sub["x12"], "x12"),
-                "gols_over": calibrar(sub["gols_over"], "gols_over"),
-                "gols_under": calibrar(sub["gols_under"], "gols_under")},
     }
 
 
@@ -1067,25 +911,12 @@ def validacao_por_grupos(valid):
     return {"por_liga": por_liga, "por_temporada": por_temporada}
 
 
-def picks_previsao(j, cal):
+def picks_previsao(j):
     pr = j["prob"]
-    o = j.get("odds") or {}
     x12 = [pr["x1"], pr["x"], pr["x2"]]
-    c12w = (cal.get("x12") or {}).get("w") or 0.0
-    if o.get("h") and o.get("d") and o.get("a"):
-        inv = [1 / o["h"], 1 / o["d"], 1 / o["a"]]
-        s = sum(inv)
-        pm = [x / s for x in inv]
-        x12 = [c12w * pm[k] + (1 - c12w) * x12[k] for k in range(3)]
-    c25w = ((cal.get("gols_over") or {}).get("2.5") or {}).get("w") or 0.0
 
     def gol(li, side):
-        p = pr["gols_over"][li] if side == "over" else pr["gols_under"][li]
-        if li == 2 and o.get("over") and o.get("under"):
-            po = (1 / o["over"]) / (1 / o["over"] + 1 / o["under"])
-            pc = c25w * po + (1 - c25w) * pr["gols_over"][2]
-            p = pc if side == "over" else 1 - pc
-        return p
+        return pr["gols_over"][li] if side == "over" else pr["gols_under"][li]
 
     picks = []
     for k in range(3):
@@ -1352,30 +1183,10 @@ def main():
         for l, r in validacao(valid[mkt], mkt).items():
             print(f"    {float(l):>4.1f}: taxa={r['taxa']:.1%} (n={r['n']})")
 
-    print("\n== Calibração com odds (fora de amostra) ==")
-    cal12 = calibrar(valid["x12"], "x12")
-    if cal12:
-        print(f"  1X2: w={cal12['w']:.2f}  modelo={v12['0.75']['taxa']:.1%} -> calibrado={cal12['taxa']:.1%} (n={cal12['n']})")
-    cal_gol_over = calibrar(valid["gols_over"], "gols_over")
-    cal_gol_under = calibrar(valid["gols_under"], "gols_under")
-    v_go = validacao(valid["gols_over"], "gols_over")
-    v_gu = validacao(valid["gols_under"], "gols_under")
-    for kl in ("2.5", "3.5", "4.5", "5.5"):
-        if kl in cal_gol_over:
-            r = cal_gol_over[kl]
-            mod = v_go.get(kl)
-            ms = f"{mod['taxa']:.1%} (n={mod['n']})" if mod else "—"
-            print(f"  Gols Over {kl}: w={r['w']:.2f}  modelo={ms} -> calibrado={r['taxa']:.1%} (n={r['n']})")
-        if kl in cal_gol_under:
-            r = cal_gol_under[kl]
-            mod = v_gu.get(kl)
-            ms = f"{mod['taxa']:.1%} (n={mod['n']})" if mod else "—"
-            print(f"  Gols Under {kl}: w={r['w']:.2f}  modelo={ms} -> calibrado={r['taxa']:.1%} (n={r['n']})")
-
     print(f"\n== Gerando JSON para o front ==")
     jogos = []
     novas = []
-    cal_data = {"x12": cal12, "gols_over": cal_gol_over, "gols_under": cal_gol_under}
+    cal_data = {}
     for lg in ov.LEAGUES:
         rows = rows_all.get(lg["key"])
         if not rows:
@@ -1428,14 +1239,12 @@ def main():
             lam_h, lam_a = lam_h * k, lam_a * k
             jm = joint_metrics(lam_h, lam_a, rho)
             e, h = line_probs(r["lam_c"], r["lam_ht"], ESC_LINHAS, bases)
-            odds = espn_odds(lg, f, data_dir, "fixtures" in refresh)
             lam_esc = None if r["lam_c"] is None else round(r["lam_c"][0] + r["lam_c"][1], 2)
             lam_ht = None if r["lam_ht"] is None else round(r["lam_ht"][0] + r["lam_ht"][1], 2)
             jogo = {
                 "liga": lg["nome"], "id": f["id"], "casa": f["home"], "fora": f["away"],
                 "data": f["date"], "hora_br": fmt_br(f["date"]),
                 "dados": "completo" if r["full"] else "parcial",
-                "odds": odds,
                 "lam": round(lam_h + lam_a, 2),
                 "lam_ht": lam_ht,
                 "lam_esc": lam_esc,
@@ -1454,7 +1263,7 @@ def main():
                 novas.append({"id": f["id"], "espn": lg["espn"], "liga": lg["nome"],
                               "casa": jogo["casa"], "fora": jogo["fora"], "data": jogo["data"],
                               "hora_br": jogo["hora_br"], "lam": jogo["lam"], "lam_esc": lam_esc,
-                              "picks": picks_previsao(jogo, cal_data)})
+                              "picks": picks_previsao(jogo)})
     jogos.sort(key=lambda j: j["data"])
     previsoes = snapshot_previsoes(data_dir, novas)
     resultados = coletar_resultados(data_dir, previsoes)
@@ -1476,7 +1285,6 @@ def main():
             "base_over15": round(base_tot["h"] / base_tot["n"], 4) if base_tot["n"] else None,
             **validacao_por_grupos(valid),
         },
-        "cal": cal_data,
         "w_sot": best_w,
         "ao_vivo": ao_vivo,
         "linhas_gols": GOL_LINHAS,
