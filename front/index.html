@@ -137,7 +137,9 @@
   </section>
 
   <section class="sec" id="sec-apostas" hidden>
-    <h2>Apostas <span class="n" id="apostas-n"></span></h2>
+    <h2>Apostas <span class="n" id="apostas-n"></span>
+      <button class="btn mini" onclick="exportarApostas()" title="Baixar apostas em CSV">Exportar CSV</button>
+    </h2>
     <div class="card ap-resumo">
       <label class="banca-label">Banca (R$)
         <input id="ap-banca" type="number" step="10" min="10" inputmode="decimal">
@@ -150,6 +152,7 @@
 
 <div class="foot">
   Previsões do modelo (Poisson + Dixon-Coles, SOT, escanteios) · Validação walk-forward fora de amostra
+  <span class="foot-keys">Atalhos: <kbd>/</kbd> busca · <kbd>1</kbd>–<kbd>6</kbd> seções · <kbd>Esc</kbd> limpa busca</span>
 </div>
 
 <div class="combo-bar" id="combo-bar" hidden>

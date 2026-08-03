@@ -98,12 +98,32 @@ function toast(msg, tipo) {
   }, 2400);
 }
 
+function animNum(el, alvo, fmt) {
+  const ini = parseFloat(String(el.textContent).replace(/[^\d.]/g, '')) || 0;
+  if (Math.abs(alvo - ini) < 0.001) { el.textContent = fmt ? fmt(alvo) : String(alvo); return; }
+  const dur = 600;
+  const t0 = performance.now();
+  function step(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const e = 1 - Math.pow(1 - p, 3);
+    const v = ini + (alvo - ini) * e;
+    el.textContent = fmt ? fmt(v) : String(Math.round(v));
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
 function fillHero(d) {
   const hms = document.querySelectorAll('.hero-metrics .hm-v');
   if (!hms.length) return;
-  hms[0].textContent = d && d.jogos ? String(d.jogos.length) : '—';
-  hms[1].textContent = d && d.jogos ? String(new Set(d.jogos.map(j => j.liga)).size) : '—';
-  hms[2].textContent = d && typeof d.w_sot === 'number' ? d.w_sot.toFixed(1) : '—';
+  if (!d || !d.jogos) {
+    hms.forEach(h => { h.textContent = '—'; });
+    return;
+  }
+  animNum(hms[0], d.jogos.length);
+  animNum(hms[1], new Set(d.jogos.map(j => j.liga)).size);
+  if (typeof d.w_sot === 'number') animNum(hms[2], d.w_sot, v => v.toFixed(1));
+  else hms[2].textContent = '—';
 }
 
 const ICO_PATHS = {
@@ -149,7 +169,12 @@ function renderFiltro() {
       <span class="dow">${dow}</span><b class="day">${day}</b>
       <span class="mon">${mon}</span><span class="cnt">${n}</span></button>`;
   };
-  el.innerHTML = `<button class="${dataFiltro ? '' : 'act'}" onclick="setFiltro('')">Todos
+  const hoje = new Date().toISOString().slice(0, 10);
+  const hojeChip = dias.includes(hoje)
+    ? `<button class="${dataFiltro === hoje ? 'act' : ''}" onclick="setFiltro('${hoje}')">Hoje
+      <span class="cnt">(${cnt(hoje)})</span></button>`
+    : '';
+  el.innerHTML = hojeChip + `<button class="${dataFiltro ? '' : 'act'}" onclick="setFiltro('')">Todos
       <span class="cnt">(${data.jogos.length})</span></button>` +
     dias.map(d => diaTile(d, d, cnt(d))).join('');
 }
@@ -252,7 +277,7 @@ function renderAoVivo() {
   const rows = g => {
     const pks = g.picks.map(pk =>
       `<span class="pick-badge ${pk.ok ? 'ok' : 'bad'}"><span class="ic">${ico(pk.ok ? 'check' : 'cross', 9)}</span> ${esc(pk.nome)} <span class="p">${pct(pk.p)}</span></span>`).join('');
-    return `<div class="vjogo"><div class="linha1"><span class="teams">${crest(g.casa, 18)}${esc(g.casa)} <span class="vs">x</span> ${crest(g.fora, 18)}${esc(g.fora)}</span>
+    return `<div class="vjogo"><div class="linha1"><span class="teams">${crest(g.casa, 18)}<button type="button" class="team-btn" data-team="${esc(g.casa)}">${esc(g.casa)}</button> <span class="vs">x</span> ${crest(g.fora, 18)}<button type="button" class="team-btn" data-team="${esc(g.fora)}">${esc(g.fora)}</button></span>
       <span class="resultado">${g.hg} – ${g.ag}</span><span class="pl">${ico('clock', 11)}${esc(g.hora_br)}</span>
       ${g.lam_esc ? `<span class="pl">${ico('ball', 11)}${g.lam} · ${ico('corner', 11)}${g.lam_esc}</span>` : ''}
       </div><div class="picks">${pks}</div></div>`;
@@ -465,7 +490,7 @@ function renderJogos() {
     if (!g.prob) {
       return `<div class="card mc">
         <div class="mc-head">
-          <div class="teams">${crest(g.casa)}<b>${esc(g.casa)}</b> <span class="vs">×</span> ${crest(g.fora)}<b>${esc(g.fora)}</b></div>
+          <div class="teams">${crest(g.casa)}<button type="button" class="team-btn" data-team="${esc(g.casa)}">${esc(g.casa)}</button> <span class="vs">×</span> ${crest(g.fora)}<button type="button" class="team-btn" data-team="${esc(g.fora)}">${esc(g.fora)}</button></div>
           <div class="mc-actions"><span class="badge med">sem histórico</span></div>
         </div>
         <div class="mc-meta">
@@ -530,7 +555,7 @@ function renderJogos() {
     const cor = corLiga(g.liga);
     return `<div class="card mc">
       <div class="mc-head">
-        <div class="teams">${crest(g.casa)}<b>${esc(g.casa)}</b> <span class="vs">×</span> ${crest(g.fora)}<b>${esc(g.fora)}</b></div>
+        <div class="teams">${crest(g.casa)}<button type="button" class="team-btn" data-team="${esc(g.casa)}">${esc(g.casa)}</button> <span class="vs">×</span> ${crest(g.fora)}<button type="button" class="team-btn" data-team="${esc(g.fora)}">${esc(g.fora)}</button></div>
         <div class="mc-actions">
           <span class="badge ${g.dados === 'completo' ? 'ok' : 'med'}">${g.dados}</span>
         </div>
@@ -582,12 +607,18 @@ function renderCombo() {
   const badge = eTot >= 0.75 ? 'ok' : eTot >= 0.6 ? 'med' : 'bad';
   const rot = eTot >= 0.75 ? '≥75% bom' : eTot >= 0.6 ? 'risco' : 'ruim';
   el.innerHTML = items + `
+    <div class="meter-wrap">
+      <div class="meter"><span class="m-fill" style="width:${Math.round(eTot * 100)}%"></span><span class="m-thr" style="left:60%"></span><span class="m-thr" style="left:75%"></span></div>
+      <div class="meter-lbl"><span>Expectativa de acerto: <b class="${clsP(eTot)}">${pct(eTot)}</b></span><span>${rot}</span></div>
+    </div>
     <div class="totais">
       <div><span class="lbl">Probabilidade do modelo</span><b class="p ${clsP(pTot)}">${pct(pTot)}</b></div>
+      <div><span class="lbl">Odd justa (1 ÷ P)</span><b class="p">${(1 / pTot).toFixed(2)}</b></div>
       <div><span class="lbl">Expectativa pela validação</span><b class="p ${clsP(eTot)}">${pct(eTot)}</b>
         <span class="badge big ${badge}">${rot}</span></div>
     </div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn prim" onclick="irPara('sec-apostas')">Apostar nesta combinação</button>
+    <button class="btn" onclick="copiarCombo()">Copiar</button>
     <button class="btn" onclick="limparPicks()">Limpar combinação</button></div>`;
 }
 
@@ -867,6 +898,28 @@ function registrarAposta() {
   toast('Aposta registrada ✓', 'ok');
 }
 
+function exportarApostas() {
+  if (!apostas.length) { toast('Nenhuma aposta para exportar', 'err'); return; }
+  const head = 'data;odd;valor;retorno;palpites';
+  const linhas = apostas.map(a => {
+    const av = avaliarAposta(a);
+    const ret = av.ganhou ? (a.odd * a.valor).toFixed(2) : '';
+    const picksTxt = a.picks.map(p => p.nome.replace(/[—–]/g, '-').replace(/;/g, ',')).join(' | ');
+    return [a.criada.slice(0, 19).replace('T', ' '), a.odd, a.valor, ret, picksTxt].join(';');
+  });
+  const csv = '\uFEFF' + head + '\n' + linhas.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const aEl = document.createElement('a');
+  aEl.href = url;
+  aEl.download = 'apostas.csv';
+  document.body.appendChild(aEl);
+  aEl.click();
+  aEl.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('Apostas exportadas em CSV', 'ok');
+}
+
 function removerAposta(id) {
   apostas = apostas.filter(a => a.id !== id);
   salvarApostas();
@@ -898,6 +951,34 @@ if (ligaEl) {
 if (ordenaEl) {
   ordenaEl.addEventListener('change', () => { ordena = ordenaEl.value; renderJogos(); });
 }
+
+// ---- Clique no nome do time filtra a busca ----
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('.team-btn');
+  if (!b) return;
+  const t = b.dataset.team;
+  const busca = document.getElementById('busca');
+  if (busca) busca.value = t;
+  buscaTime = t.toLowerCase();
+  renderJogos();
+  toast('Filtrando por ' + t, 'ok');
+});
+
+// ---- Atalhos de teclado ----
+document.addEventListener('keydown', ev => {
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  const tag = ev.target && ev.target.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (ev.key === '/') {
+    ev.preventDefault();
+    const b = document.getElementById('busca');
+    if (b) { b.focus(); b.select(); }
+    return;
+  }
+  const secoes = { '1': 'sec-taxas', '2': 'sec-combo', '3': 'sec-auto', '4': 'sec-jogos', '5': 'sec-apostas', '6': 'sec-vivo' };
+  const sec = secoes[ev.key];
+  if (sec) irPara(sec);
+});
 
 // ---- Atualização automática (seção ao vivo) ----
 let refreshTimer = null;

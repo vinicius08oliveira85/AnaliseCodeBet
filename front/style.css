@@ -664,6 +664,49 @@ input, select { accent-color: var(--accent); }
 .cb-x:hover { color: var(--bad); background: rgba(251, 113, 133, .12); transform: scale(1.08); }
 body.has-combo .toast-wrap { bottom: 92px; }
 
+/* ---------- Time clicável (filtra busca) ---------- */
+.team-btn {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: inherit; font-weight: 800; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  border-bottom: 1px dashed transparent; line-height: 1.3;
+  transition: color .15s, border-color .15s;
+}
+.team-btn:hover { color: var(--accent); border-color: var(--accent); }
+.team-btn:focus-visible { outline-offset: 3px; }
+
+/* ---------- Medidor de risco da combinação ---------- */
+.meter-wrap { margin-top: 12px; }
+.meter {
+  position: relative; height: 6px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--bad), var(--med) 55%, var(--ok) 82%);
+}
+.meter .m-fill {
+  position: absolute; inset: 0 auto 0 0; width: 0%;
+  background: rgba(255, 255, 255, .55); border-radius: 3px;
+  transition: width .55s cubic-bezier(.22, 1, .36, 1);
+}
+.meter .m-thr {
+  position: absolute; top: -2px; bottom: -2px; width: 2px;
+  background: rgba(7, 10, 18, .85); border-radius: 1px;
+}
+.meter-lbl {
+  display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  font-size: 10.5px; color: var(--mut); margin-top: 5px; font-weight: 600;
+}
+.meter-lbl b { font-variant-numeric: tabular-nums; }
+
+/* ---------- Botão mini ---------- */
+.btn.mini { padding: 3px 11px; font-size: 10.5px; border-radius: 999px; }
+
+/* ---------- Rodapé / atalhos ---------- */
+.foot-keys { display: block; margin-top: 6px; color: var(--mut); font-weight: 500; }
+.foot-keys kbd {
+  font-family: inherit; font-size: 9.5px; font-weight: 700;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--txt);
+}
+
 /* ---------- Toasts ---------- */
 .toast-wrap {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 90;
