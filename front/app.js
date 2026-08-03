@@ -100,6 +100,7 @@ function setMenuAtivo(id) {
 function irPara(id) {
   const el = document.getElementById(id);
   if (!el) return;
+  if (id === 'sec-apostas') renderApostas();
   const vivo = document.getElementById('sec-vivo');
   const apostas = document.getElementById('sec-apostas');
   if (id === 'sec-vivo' && vivo.hidden) aba('vivo');
@@ -208,6 +209,7 @@ function addPick(jogoIdx, tipo, li, p, label) {
   pickSeq[id] = true;
   renderCombo();
   renderJogos();
+  renderApostas();
 }
 
 function removePick(id) {
@@ -215,6 +217,7 @@ function removePick(id) {
   if (i >= 0) { picks.splice(i, 1); delete pickSeq[id]; }
   renderCombo();
   renderJogos();
+  renderApostas();
 }
 
 function nomeMercado(tipo, li) {
@@ -437,6 +440,7 @@ function limparPicks() {
   for (const k of Object.keys(pickSeq)) delete pickSeq[k];
   renderCombo();
   renderJogos();
+  renderApostas();
 }
 
 function autoCombos() {
@@ -566,7 +570,7 @@ function renderApostas() {
         </div>`).join('')}</div>
       <div class="ap-form">
         <label>Odd da aposta
-          <input id="ap-odd" type="number" step="0.01" min="1.01" placeholder="ex.: 2.50">
+          <input id="ap-odd" type="number" step="0.01" min="1.01" value="${oddSugerida().toFixed(2)}" title="Odd sugerida = 1 ÷ prob. combinada do modelo">
         </label>
         <label>Valor (R$)
           <input id="ap-valor" type="number" step="0.50" min="0.50" placeholder="ex.: 10">
@@ -601,13 +605,18 @@ function renderApostas() {
   }).join('') + '</div>';
 }
 
+function oddSugerida() {
+  if (!picks.length) return 2;
+  const pTot = picks.reduce((a, p) => a * p.p, 1);
+  return Math.min(1000, Math.max(1.01, 1 / pTot));
+}
+
 function registrarAposta() {
   if (!picks.length) return;
   const odd = parseFloat(document.getElementById('ap-odd').value);
   const valor = parseFloat(document.getElementById('ap-valor').value);
   if (!(odd > 1)) { alert('Informe a odd da aposta (ex.: 2.50).'); return; }
-  if (!(valor > 0)) { alert('Informe o valor apostado (R$).'); return; }
-  const a = {
+  if (!(valor > 0)) { alert('Informe o valor apostado (R$).'); return; }  const a = {
     id: 'ap' + Date.now().toString(36),
     criada: new Date().toISOString(),
     odd, valor,
