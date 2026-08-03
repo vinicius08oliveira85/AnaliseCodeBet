@@ -71,6 +71,37 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+function crest(nome, sz) {
+  const s = sz || 22;
+  let h = 0;
+  for (const c of String(nome)) h = (h * 31 + c.charCodeAt(0)) % 360;
+  const ini = (String(nome).trim()[0] || '?').toUpperCase();
+  return `<span class="crest" style="--ch:${h};--cs:${s}px" aria-hidden="true">${ini}</span>`;
+}
+
+function toast(msg, tipo) {
+  const w = document.getElementById('toast');
+  if (!w) return;
+  const t = document.createElement('div');
+  t.className = 'toast' + (tipo ? ' ' + tipo : '');
+  t.textContent = msg;
+  w.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('in'));
+  setTimeout(() => {
+    t.classList.remove('in');
+    t.classList.add('out');
+    setTimeout(() => t.remove(), 320);
+  }, 2400);
+}
+
+function fillHero(d) {
+  const hms = document.querySelectorAll('.hero-metrics .hm-v');
+  if (!hms.length) return;
+  hms[0].textContent = d && d.jogos ? String(d.jogos.length) : '—';
+  hms[1].textContent = d && d.jogos ? String(new Set(d.jogos.map(j => j.liga)).size) : '—';
+  hms[2].textContent = d && typeof d.w_sot === 'number' ? d.w_sot.toFixed(1) : '—';
+}
+
 const ICO_PATHS = {
   clock: '<path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" fill="none"/>',
   ball: '<path d="M12 21c4.97 0 9-4.03 9-9S16.97 3 12 3 3 7.03 3 12s4.03 9 9 9z" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3.5v17" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="8" cy="6.6" r=".9" fill="currentColor"/><circle cx="16.2" cy="17.4" r=".9" fill="currentColor"/>',
@@ -80,6 +111,7 @@ const ICO_PATHS = {
   cross: '<path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>',
   target: '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" fill="none"/><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.7" fill="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/>',
   flash: '<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" fill="currentColor"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M8 3v4M16 3v4M3 10h18" stroke="currentColor" stroke-width="1.7" fill="none"/>',
 };
 function ico(name, size) {
   const s = size || 12;
@@ -174,6 +206,7 @@ function recarregar() {
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(d => {
       data = d;
+      fillHero(d);
       renderFiltro();
       renderStats();
       renderJogos();
@@ -214,7 +247,7 @@ function renderAoVivo() {
   const rows = g => {
     const pks = g.picks.map(pk =>
       `<span class="pick-badge ${pk.ok ? 'ok' : 'bad'}"><span class="ic">${ico(pk.ok ? 'check' : 'cross', 9)}</span> ${esc(pk.nome)} <span class="p">${pct(pk.p)}</span></span>`).join('');
-    return `<div class="vjogo"><div class="linha1"><span>${esc(g.casa)} x ${esc(g.fora)}</span>
+    return `<div class="vjogo"><div class="linha1"><span class="teams">${crest(g.casa, 18)}${esc(g.casa)} <span class="vs">x</span> ${crest(g.fora, 18)}${esc(g.fora)}</span>
       <span class="resultado">${g.hg} – ${g.ag}</span><span class="pl">${ico('clock', 11)}${esc(g.hora_br)}</span>
       ${g.lam_esc ? `<span class="pl">${ico('ball', 11)}${g.lam} · ${ico('corner', 11)}${g.lam_esc}</span>` : ''}
       </div><div class="picks">${pks}</div></div>`;
@@ -271,6 +304,7 @@ function addPick(jogoIdx, tipo, li, p, label) {
   renderCombo();
   renderJogos();
   renderApostas();
+  toast('Palpite adicionado à combinação', 'ok');
 }
 
 function removePick(id) {
@@ -279,6 +313,7 @@ function removePick(id) {
   renderCombo();
   renderJogos();
   renderApostas();
+  toast('Palpite removido');
 }
 
 function nomeMercado(tipo, li) {
@@ -299,7 +334,7 @@ function curto(tipo, li) {
 
 function button(j, tipo, li, p, label, top) {
   const sel = pickSeq[pickId(j, tipo, li)];
-  return `<button class="pick ${sel ? 'sel' : ''} ${top ? 'top' : ''}"
+  return `<button class="pick ${sel ? 'sel' : ''} ${top ? 'top' : ''}" aria-pressed="${sel ? 'true' : 'false'}"
     onclick="addPick(${j},'${tipo}',${li},${p.toFixed(6)},'${nomeMercado(tipo, li)}')">
     <span class="mk">${sel ? '<span class="chk">' + ico('check', 9) + '</span>' : ''}${label}${top ? ' <span class="star">✦</span>' : ''}</span><small>${pct(p)}</small></button>`;
 }
@@ -360,8 +395,9 @@ function renderStats() {
   document.getElementById('stats').innerHTML = cards.map(([l, e, extra]) => {
     if (!e) return `<div class="stat"><div class="l">${l}</div><div class="v">—</div></div>`;
     const warn = (e.n < 30) ? '<span class="warn">· amostra pequena</span>' : '';
+    const bar = (typeof e.taxa === 'number' && isFinite(e.taxa)) ? `<div class="bar" style="--w:${Math.round(e.taxa * 100)}%"></div>` : '';
     return `<div class="stat ${clsP(e.taxa)} ${extra}">
-      <div class="l">${l}</div><div class="v">${pct(e.taxa)}</div><div class="n">amostra: ${e.n}${warn}</div></div>`;
+      <div class="l">${l}</div><div class="v">${pct(e.taxa)}</div><div class="n">amostra: ${e.n}${warn}</div>${bar}</div>`;
   }).join('');
 }
 
@@ -388,12 +424,13 @@ function renderJogos() {
     if (!g.prob) {
       return `<div class="card mc">
         <div class="mc-head">
-          <div class="teams"><b>${esc(g.casa)}</b> <span class="vs">×</span> <b>${esc(g.fora)}</b></div>
+          <div class="teams">${crest(g.casa)}<b>${esc(g.casa)}</b> <span class="vs">×</span> ${crest(g.fora)}<b>${esc(g.fora)}</b></div>
           <div class="mc-actions"><span class="badge med">sem histórico</span></div>
         </div>
         <div class="mc-meta">
           <span class="chip-liga" style="--lh:${corLiga(g.liga)}">${ico('shield', 10)}${esc(g.liga)}</span>
-          <span>${ico('clock', 12)}${g.hora_br}</span>
+          <span class="chip-data">${ico('calendar', 12)}${rotuloData(g.data)}</span>
+          <span class="chip-time">${ico('clock', 12)}${g.hora_br}</span>
         </div>
         <div class="mkt-row"><span class="mkt-name">${ico('flash', 11)}Aviso</span>
           <span class="sem">time(s) sem histórico no modelo (ex.: recém-promovido). Previsão indisponível.</span></div>
@@ -452,14 +489,15 @@ function renderJogos() {
     const cor = corLiga(g.liga);
     return `<div class="card mc">
       <div class="mc-head">
-        <div class="teams"><b>${esc(g.casa)}</b> <span class="vs">×</span> <b>${esc(g.fora)}</b></div>
+        <div class="teams">${crest(g.casa)}<b>${esc(g.casa)}</b> <span class="vs">×</span> ${crest(g.fora)}<b>${esc(g.fora)}</b></div>
         <div class="mc-actions">
           <span class="badge ${g.dados === 'completo' ? 'ok' : 'med'}">${g.dados}</span>
         </div>
       </div>
       <div class="mc-meta">
         <span class="chip-liga" style="--lh:${cor}">${ico('shield', 10)}${esc(g.liga)}</span>
-        <span>${ico('clock', 12)}${g.hora_br}</span>
+        <span class="chip-data">${ico('calendar', 12)}${rotuloData(g.data)}</span>
+        <span class="chip-time">${ico('clock', 12)}${g.hora_br}</span>
         <span>${ico('ball', 12)}<b>${g.lam}</b> gols</span>
         ${g.lam_esc ? `<span>${ico('corner', 12)}<b>${g.lam_esc}</b> escanteios</span>` : ''}
       </div>
@@ -516,6 +554,7 @@ function limparPicks() {
   renderCombo();
   renderJogos();
   renderApostas();
+  toast('Combinação limpa');
 }
 
 function autoCombos() {
@@ -596,6 +635,7 @@ function autoCombos() {
 function aplicarAuto(k) {
   const c = window._autos[k];
   for (const m of c.ms) addPick(m.i, m.best.tipo, m.best.li, m.best.p, m.best.nome);
+  toast('Combinação automática aplicada', 'ok');
 }
 
 function pickOk(pk, r) {
@@ -736,6 +776,7 @@ function registrarAposta() {
   renderCombo();
   renderJogos();
   renderApostas();
+  toast('Aposta registrada ✓', 'ok');
 }
 
 function removerAposta(id) {
@@ -755,6 +796,7 @@ fetch('analise.json')
     document.getElementById('sub').textContent =
       'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot;
     document.getElementById('meta1').textContent = '· validação fora de amostra';
+    fillHero(d);
     renderFiltro();
     renderStatsSel();
     renderStats();
@@ -769,6 +811,7 @@ fetch('analise.json')
     const sub = document.getElementById('sub');
     sub.classList.add('erro');
     sub.textContent = 'Erro ao carregar analise.json: ' + e.message + ' (sirva a pasta via HTTP, ex.: python3 -m http.server)';
+    fillHero(null);
     document.getElementById('stats').innerHTML = '';
     document.getElementById('jogos').innerHTML = '';
   });
