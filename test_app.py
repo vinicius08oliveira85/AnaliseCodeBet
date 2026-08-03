@@ -80,6 +80,10 @@ class TestFrontJson(unittest.TestCase):
     def test_jogo_keys(self):
         for j in self.data["jogos"]:
             self.assertIn("lam", j)
+            self.assertIn("prob", j)
+            if not j["prob"]:
+                self.assertEqual(j.get("dados"), "sem_historico")
+                continue
             for k in ("x1", "x", "x2", "gols_over", "gols_under",
                       "ht_over", "ht_under", "esc_over", "esc_under"):
                 self.assertIn(k, j["prob"])
@@ -91,6 +95,8 @@ class TestFrontJson(unittest.TestCase):
     def test_x12_sums_one(self):
         for j in self.data["jogos"]:
             p = j["prob"]
+            if not p:
+                continue
             self.assertAlmostEqual(p["x1"] + p["x"] + p["x2"], 1.0, places=3)
 
     def test_validacao_min_sample(self):

@@ -13,6 +13,49 @@ let statsTemp = null;
 const picks = [];
 const pickSeq = {};
 let apostas = carregarApostas();
+const BANKROLL_KEY = 'banca';
+
+function carregarBanca() {
+  try {
+    const v = parseFloat(localStorage.getItem(BANKROLL_KEY));
+    return isFinite(v) && v > 0 ? v : 500;
+  } catch (e) { return 500; }
+}
+function salvarBanca(v) {
+  try { localStorage.setItem(BANKROLL_KEY, String(v)); } catch (e) {}
+}
+
+function kellyStake(odd, p) {
+  const b = odd - 1;
+  const q = 1 - p;
+  if (b <= 0 || p <= 0 || p >= 1) return null;
+  const f = (b * p - q) / b;
+  if (f <= 0) return null;
+  return Math.min(f, 0.25);
+}
+
+function calcKelly() {
+  const oi = document.getElementById('ap-odd');
+  const ki = document.getElementById('ap-kelly');
+  const vi = document.getElementById('ap-valor');
+  if (!oi || !ki || !picks.length) return;
+  const odd = parseFloat(oi.value);
+  const pTot = picks.reduce((a, p) => a * p.p, 1);
+  if (!(odd > 1)) { ki.textContent = ''; return; }
+  const kellyFrac = 0.25;
+  const p = Math.min(pTot, 0.999);
+  const ev = pTot * odd - 1;
+  const f = kellyFrac * (odd * p - 1) / (odd - 1);
+  if (f <= 0) {
+    ki.innerHTML = `Odd justa é <b>${(1 / pTot).toFixed(2)}</b> · nesta odd o EV é <span class="${ev >= 0 ? '' : 'bad'}">${(ev * 100).toFixed(1)}%</span> — sem valor, Kelly 0`;
+    if (vi) vi.value = '';
+    return;
+  }
+  const stake = carregarBanca() * f;
+  const maxBet = carregarBanca() * 0.25;
+  ki.innerHTML = `Kelly ¼ da banca: <b>R$ ${stake.toFixed(2)}</b> · EV <span class="${ev >= 0 ? 'ok' : 'bad'}">${(ev >= 0 ? '+' : '')}${(ev * 100).toFixed(1)}%</span>`;
+  if (vi) vi.value = Math.min(stake, maxBet).toFixed(2);
+}
 
 function carregarApostas() {
   try { return JSON.parse(localStorage.getItem('apostas') || '[]'); }
@@ -85,12 +128,6 @@ function aba(nome) {
   document.getElementById('sec-prev').hidden = nome !== 'prev';
   document.getElementById('sec-vivo').hidden = nome !== 'vivo';
   document.getElementById('sec-apostas').hidden = nome !== 'apostas';
-  const tp = document.getElementById('tab-prev');
-  if (tp) tp.classList.toggle('act', nome === 'prev');
-  const tv = document.getElementById('tab-vivo');
-  if (tv) tv.classList.toggle('act', nome === 'vivo');
-  const ta = document.getElementById('tab-apostas');
-  if (ta) ta.classList.toggle('act', nome === 'apostas');
 }
 
 function setMenuAtivo(id) {
@@ -111,6 +148,8 @@ function irPara(id) {
 }
 
 function initSpy() {
+  const banca = document.getElementById('ap-banca');
+  if (banca) banca.addEventListener('change', renderResumoBanca);
   if (!('IntersectionObserver' in window)) return;
   const secs = ['sec-taxas', 'sec-combo', 'sec-auto', 'sec-jogos', 'sec-vivo', 'sec-apostas']
     .map(id => document.getElementById(id)).filter(Boolean);
@@ -126,6 +165,28 @@ function nomeVivo(k) {
   if (p[0] === 'dc') return 'Dupla ' + p[1].toUpperCase();
   const mkt = p[0] === 'gols' ? 'Gols' : p[0] === 'ht' ? '1º tempo' : 'Escanteios';
   return mkt + ': ' + (p[1] === 'over' ? 'mais de ' : 'menos de ') + p[2];
+}
+
+function recarregar() {
+  const btn = document.querySelector('.refresh');
+  if (btn) btn.textContent = 'atualizando…';
+  fetch('analise.json?cb=' + Date.now())
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(d => {
+      data = d;
+      renderFiltro();
+      renderStats();
+      renderJogos();
+      renderCombo();
+      autoCombos();
+      renderAoVivo();
+      renderApostas();
+    })
+    .catch(e => {
+      if (btn) btn.textContent = '↻ atualizar';
+      const el = document.getElementById('vivo');
+      if (el) el.innerHTML = '<div class="vazio">Falha ao atualizar: ' + esc(e.message) + '</div>';
+    });
 }
 
 function renderAoVivo() {
@@ -324,6 +385,20 @@ function renderJogos() {
     });
   el.innerHTML = idxs.map(j => {
     const g = data.jogos[j];
+    if (!g.prob) {
+      return `<div class="card mc">
+        <div class="mc-head">
+          <div class="teams"><b>${esc(g.casa)}</b> <span class="vs">×</span> <b>${esc(g.fora)}</b></div>
+          <div class="mc-actions"><span class="badge med">sem histórico</span></div>
+        </div>
+        <div class="mc-meta">
+          <span class="chip-liga" style="--lh:${corLiga(g.liga)}">${ico('shield', 10)}${esc(g.liga)}</span>
+          <span>${ico('clock', 12)}${g.hora_br}</span>
+        </div>
+        <div class="mkt-row"><span class="mkt-name">${ico('flash', 11)}Aviso</span>
+          <span class="sem">time(s) sem histórico no modelo (ex.: recém-promovido). Previsão indisponível.</span></div>
+      </div>`;
+    }
     const pr = g.prob;
     const rec = (lines, mkts) => lines
       .map(([li, side]) => {
@@ -445,6 +520,7 @@ function limparPicks() {
 
 function autoCombos() {
   const cands = data.jogos.map((g, i) => {
+    if (!g.prob) return null;
     const pr = g.prob;
     const list = [];
     const px = [pv(i, 'x12', 0), pv(i, 'x12', 1), pv(i, 'x12', 2)];
@@ -490,7 +566,11 @@ function autoCombos() {
       }
     }
   }
-  combos.sort((x, y) => y.pTot - x.pTot);
+  for (const c of combos) {
+    c.odd = 1 / c.eTot;
+    c.ev = c.pTot * c.odd - 1;
+  }
+  combos.sort((x, y) => y.ev - x.ev);
   const uniq = [];
   const seen = new Set();
   for (const c of combos) {
@@ -506,7 +586,7 @@ function autoCombos() {
     return;
   }
   el.innerHTML = '<ul class="auto">' + uniq.map((c, k) =>
-    `<li><b>Combo ${k + 1}</b> — expectativa ${pct(c.eTot)} · probabilidade do modelo ${pct(c.pTot)}
+    `<li><b>Combo ${k + 1}</b> — expectativa ${pct(c.eTot)} · prob. modelo ${pct(c.pTot)} · odd justa ${c.odd.toFixed(2)} · <span class="p ${c.ev > 0 ? 'ok' : ''}">EV ${(c.ev * 100).toFixed(1)}%</span>
       <button class="usar" onclick="aplicarAuto(${k})">usar</button>
       <div class="d">${c.ms.map(m => esc(m.g.casa) + ' x ' + esc(m.g.fora) + ' → ' + m.best.nome).join(' · ')}</div></li>`
   ).join('') + '</ul>';
@@ -552,6 +632,30 @@ function avaliarAposta(a) {
   return { res, pendente, ganhou };
 }
 
+function renderResumoApostas() {
+  const nums = document.getElementById('ap-resumo-nums');
+  const banc = document.getElementById('ap-banca');
+  if (!nums) return;
+  if (banc) banc.value = carregarBanca().toFixed(0);
+  const evalApostas = apostas.map(a => ({ a, av: avaliarAposta(a) }));
+  const total = evalApostas.reduce((s, x) => s + x.a.valor, 0);
+  const retorno = evalApostas.reduce((s, x) => s + (x.av.ganhou ? x.a.odd * x.a.valor : 0), 0);
+  const lucro = retorno - total;
+  const roi = total > 0 ? (lucro / total) * 100 : 0;
+  nums.innerHTML =
+    `<span class="num">Investido <b>R$ ${total.toFixed(2)}</b></span>
+     <span class="num">Retorno <b>R$ ${retorno.toFixed(2)}</b></span>
+     <span class="num">Resultado <b class="${lucro > 0 ? 'ok' : lucro < 0 ? 'bad' : ''}">${lucro >= 0 ? '+' : ''}R$ ${lucro.toFixed(2)}</b></span>
+     <span class="num">ROI <b class="${roi > 0 ? 'ok' : roi < 0 ? 'bad' : ''}">${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%</b></span>`;
+}
+
+function renderResumoBanca() {
+  const banc = document.getElementById('ap-banca');
+  if (!banc) return;
+  const v = parseFloat(banc.value);
+  if (isFinite(v) && v > 0) salvarBanca(v);
+}
+
 function renderApostas() {
   const el = document.getElementById('apostas');
   const nEl = document.getElementById('apostas-n');
@@ -559,7 +663,12 @@ function renderApostas() {
   if (!el) return;
   nEl.textContent = apostas.length ? '· ' + apostas.length + (apostas.length > 1 ? ' apostas' : ' aposta') : '';
   if (mn) mn.textContent = apostas.length ? String(apostas.length) : '';
-  const nova = !picks.length ? '<div class="vazio">Selecione palpites nos jogos (✦ = melhor chance) para montar a combinação e depois apostar.</div>' : `
+  renderResumoApostas();
+  let nova = '<div class="vazio">Selecione palpites nos jogos (✦ = melhor chance) para montar a combinação e depois apostar.</div>';
+  if (picks.length) {
+    const pTot = picks.reduce((a, p) => a * p.p, 1);
+    const oddSug = Math.min(1000, Math.max(1.01, 1 / pTot));
+    nova = `
     <div class="card">
       <h3>Nova aposta</h3>
       <div class="combo-list">${picks.map((p, i) => `
@@ -568,26 +677,28 @@ function renderApostas() {
           <div class="nome">${p.label}</div>
           <span class="p ${clsP(p.taxa)}">${pct(p.taxa)}</span>
         </div>`).join('')}</div>
+      <div class="ap-kelly" id="ap-kelly"></div>
       <div class="ap-form">
         <label>Odd da aposta
-          <input id="ap-odd" type="number" step="0.01" min="1.01" value="${oddSugerida().toFixed(2)}" title="Odd sugerida = 1 ÷ prob. combinada do modelo">
+          <input id="ap-odd" type="number" step="0.01" min="1.01" value="${oddSug.toFixed(2)}" oninput="calcKelly()" title="Odd sugerida = 1 ÷ prob. combinada do modelo (odd justa)">
         </label>
         <label>Valor (R$)
-          <input id="ap-valor" type="number" step="0.50" min="0.50" placeholder="ex.: 10">
+          <input id="ap-valor" type="number" step="0.50" min="0.50" value="" placeholder="ex.: 10" title="Sugerido pelo critério de Kelly (fracionado)">
         </label>
         <button class="btn prim" onclick="registrarAposta()">Apostar</button>
       </div>
     </div>`;
+    calcKelly();
+  }
   if (!apostas.length) {
     el.innerHTML = nova + '<div class="vazio">Nenhuma aposta registrada ainda. Suas apostas ficam salvas neste navegador e o resultado é atualizado quando você rodar o pipeline e recarregar.</div>';
     return;
   }
-  const retorno = a => a.ganhou ? (a.odd * a.valor).toFixed(2) : null;
   el.innerHTML = nova + '<div class="ap-lista">' + apostas.slice().reverse().map((a, i) => {
     const av = avaliarAposta(a);
-    const badge = a.ganhou ? 'ok' : av.pendente ? 'med' : 'bad';
-    const rot = a.ganhou ? 'GANHOU' : av.pendente ? 'PENDENTE' : 'PERDEU';
-    const r = a.ganhou ? a.odd * a.valor : 0;
+    const badge = av.ganhou ? 'ok' : av.pendente ? 'med' : 'bad';
+    const rot = av.ganhou ? 'GANHOU' : av.pendente ? 'PENDENTE' : 'PERDEU';
+    const r = av.ganhou ? a.odd * a.valor : 0;
     const pks = av.res.map(p =>
       `<span class="pick-badge ${p.ok === true ? 'ok' : p.ok === false ? 'bad' : ''}">
         <span class="ic">${p.ok === null ? '…' : ico(p.ok ? 'check' : 'cross', 9)}</span>
@@ -597,18 +708,12 @@ function renderApostas() {
         <span class="badge ${badge}">${rot}</span>
         <span class="ap-odd">odd ${a.odd.toFixed(2)}</span>
         <span class="ap-valor">R$ ${a.valor.toFixed(2)}</span>
-        <span class="ap-ret">retorno <b class="${a.ganhou ? 'ok' : ''}">R$ ${a.ganhou ? r.toFixed(2) : '—'}</b></span>
+        <span class="ap-ret">retorno <b class="${av.ganhou ? 'ok' : ''}">R$ ${av.ganhou ? r.toFixed(2) : '—'}</b></span>
         <button class="x" onclick="removerAposta('${a.id}')" title="Excluir aposta">✕</button>
       </div>
       <div class="picks">${pks}</div>
     </div>`;
   }).join('') + '</div>';
-}
-
-function oddSugerida() {
-  if (!picks.length) return 2;
-  const pTot = picks.reduce((a, p) => a * p.p, 1);
-  return Math.min(1000, Math.max(1.01, 1 / pTot));
 }
 
 function registrarAposta() {

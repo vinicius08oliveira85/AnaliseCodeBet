@@ -98,13 +98,21 @@
   </section>
 
   <section class="sec" id="sec-vivo" hidden>
-    <h2>Validação ao vivo <span class="n" id="vivo-meta"></span></h2>
+    <h2>Validação ao vivo <span class="n" id="vivo-meta"></span>
+      <button class="btn refresh" onclick="recarregar()" title="Recarregar dados">↻ atualizar</button>
+    </h2>
     <div class="stats" id="vivo-stats"></div>
     <div id="vivo"></div>
   </section>
 
   <section class="sec" id="sec-apostas" hidden>
     <h2>Apostas <span class="n" id="apostas-n"></span></h2>
+    <div class="card ap-resumo">
+      <label class="banca-label">Banca (R$)
+        <input id="ap-banca" type="number" step="10" min="10" inputmode="decimal">
+      </label>
+      <div id="ap-resumo-nums"></div>
+    </div>
     <div id="apostas"></div>
   </section>
 </main>

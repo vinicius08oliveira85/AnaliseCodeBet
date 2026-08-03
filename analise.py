@@ -30,14 +30,6 @@ def drift_k(ra, rp, n):
     return 1.0
 
 
-def _goals(s):
-    try:
-        v = float(s)
-        return int(v)
-    except (TypeError, ValueError):
-        return None
-
-
 def load_rows(data_dir, refresh):
     refresh_csv = "csv" in refresh
     refresh_cdb = "cdb" in refresh
@@ -56,7 +48,7 @@ def load_rows(data_dir, refresh):
                         d = ov.parse_date(r["Date"])
                     except ValueError:
                         continue
-                    hg, ag = _goals(r.get("HG")), _goals(r.get("AG"))
+                    hg, ag = ov._goals(r.get("HG")), ov._goals(r.get("AG"))
                     if hg is None or ag is None:
                         continue
                     rows.append({"date": d, "season": r["Season"], "home": r["Home"], "away": r["Away"],
@@ -81,13 +73,13 @@ def load_rows(data_dir, refresh):
                             d = ov.parse_date(r["Date"])
                         except ValueError:
                             continue
-                        hg, ag = _goals(r.get("FTHG")), _goals(r.get("FTAG"))
+                        hg, ag = ov._goals(r.get("FTHG")), ov._goals(r.get("FTAG"))
                         if hg is None or ag is None:
                             continue
                         rows.append({"date": d, "season": seas, "home": r["HomeTeam"], "away": r["AwayTeam"],
                                      "hg": hg, "ag": ag,
-                                     "hhg": _goals(r.get("HTHG")), "hag": _goals(r.get("HTAG")),
-                                     "hst": _goals(r.get("HST")), "ast": _goals(r.get("AST")),
+                                     "hhg": ov._goals(r.get("HTHG")), "hag": ov._goals(r.get("HTAG")),
+                                     "hst": ov._goals(r.get("HST")), "ast": ov._goals(r.get("AST")),
                                      "hc": ov._float(r.get("HC")), "ac": ov._float(r.get("AC"))})
         rows.sort(key=lambda m: (m["date"], m["season"]))
         rows_by_league[lg["key"]] = rows
@@ -946,10 +938,21 @@ def snapshot_previsoes(data_dir, novas):
     if path.exists():
         for p in json.loads(path.read_text()):
             cur[p["id"]] = p
+    now = dt.datetime.now(dt.timezone.utc)
+    cutoff = now - dt.timedelta(days=90)
+    cur = {k: v for k, v in cur.items()
+           if not v.get("data") or _kickoff(v) >= cutoff}
     for p in novas:
         cur[p["id"]] = p
     path.write_text(json.dumps(list(cur.values()), ensure_ascii=False))
     return list(cur.values())
+
+
+def _kickoff(p):
+    try:
+        return dt.datetime.fromisoformat(p["data"].replace("Z", "+00:00"))
+    except (ValueError, AttributeError, KeyError):
+        return dt.datetime.min.replace(tzinfo=dt.timezone.utc)
 
 
 def coletar_resultados(data_dir, previsoes):
@@ -958,6 +961,16 @@ def coletar_resultados(data_dir, previsoes):
     if path.exists():
         res = json.loads(path.read_text())
     now = dt.datetime.now(dt.timezone.utc)
+    cutoff = now - dt.timedelta(days=90)
+    ids_vivos = set()
+    for p in previsoes:
+        if p.get("id") and _kickoff(p) >= cutoff:
+            ids_vivos.add(p["id"])
+    if res:
+        ant = len(res)
+        res = {k: v for k, v in res.items() if k in ids_vivos}
+        if len(res) != ant:
+            path.write_text(json.dumps(res, ensure_ascii=False))
     pendentes = []
     for p in previsoes:
         if not p.get("id") or p["id"] in res:
@@ -968,16 +981,19 @@ def coletar_resultados(data_dir, previsoes):
             continue
         if kick < now:
             pendentes.append(p)
-    for p in pendentes:
+    if not pendentes:
+        return res
+
+    def um(p):
         try:
             s = json.loads(ov.fetch(
                 f"https://site.api.espn.com/apis/site/v2/sports/soccer/{p['espn']}/summary?event={p['id']}",
                 timeout=20))
         except Exception:
-            continue
+            return None
         hdr = (s.get("header") or {}).get("competitions", [{}])[0]
         if (hdr.get("status") or {}).get("type", {}).get("name") not in ("STATUS_FULL_TIME", "STATUS_FINAL"):
-            continue
+            return None
         info = {}
         for c in hdr.get("competitors", []):
             role = c.get("homeAway")
@@ -996,10 +1012,10 @@ def coletar_resultados(data_dir, previsoes):
                     pass
             info[role] = {"score": score, "ht": ht, "nome": (c.get("team") or {}).get("displayName", "")}
         if len(info) != 2:
-            continue
+            return None
         if ov.norm(p.get("casa", "")) and ov.norm(info["home"]["nome"]) and \
                 ov.norm(p["casa"]) != ov.norm(info["home"]["nome"]):
-            continue
+            return None
         corners = {}
         for t in (s.get("boxscore") or {}).get("teams", []):
             nm = (t.get("team") or {}).get("displayName", "")
@@ -1008,10 +1024,16 @@ def coletar_resultados(data_dir, previsoes):
                     corners[nm] = int(st.get("displayValue") or 0)
         hc = corners.get(info["home"]["nome"]) if len(corners) == 2 else None
         ac = corners.get(info["away"]["nome"]) if len(corners) == 2 else None
-        res[p["id"]] = {"hg": info["home"]["score"], "ag": info["away"]["score"],
-                        "hhg": info["home"]["ht"], "hag": info["away"]["ht"], "hc": hc, "ac": ac}
-    if pendentes:
-        path.write_text(json.dumps(res, ensure_ascii=False))
+        return p["id"], {"hg": info["home"]["score"], "ag": info["away"]["score"],
+                         "hhg": info["home"]["ht"], "hag": info["away"]["ht"], "hc": hc, "ac": ac}
+
+    from concurrent.futures import ThreadPoolExecutor
+    n = min(8, len(pendentes))
+    with ThreadPoolExecutor(max_workers=n) as ex:
+        for r in ex.map(um, pendentes):
+            if r:
+                res[r[0]] = r[1]
+    path.write_text(json.dumps(res, ensure_ascii=False))
     return res
 
 
@@ -1220,7 +1242,10 @@ def main():
             home = ov.map_team(f["home"], hist_names, norm_names, name_by_norm)
             away = ov.map_team(f["away"], hist_names, norm_names, name_by_norm)
             if not home or not away:
-                print(f"  ? time não mapeado: {lg['nome']}: {f['home']} x {f['away']}")
+                jogos.append({"liga": lg["nome"], "id": f.get("id"), "casa": f["home"], "fora": f["away"],
+                              "data": f["date"], "hora_br": fmt_br(f["date"]),
+                              "dados": "sem_historico", "lam": None, "lam_ht": None, "lam_esc": None,
+                              "prob": None})
                 continue
             r = state.lambdas(home, away)
             if r is None:
