@@ -1016,20 +1016,21 @@ def calibrar(items, market):
     return res
 
 
-def bloco_validacao(sub):
+def bloco_validacao(sub, min_n=30):
     xs = sub["x12"]
     base = {"n": len(xs), "h": sum(1 for x in xs if x["hg"] + x["ag"] > 1.5)}
     return {
         "n": len(xs),
+        "min_n": min_n,
         "validacao": {
-            "x12": validacao(sub["x12"], "x12"),
-            "dc": validacao_dc(sub["dc"]),
-            "gols_over": validacao(sub["gols_over"], "gols_over"),
-            "gols_under": validacao(sub["gols_under"], "gols_under"),
-            "ht_over": validacao(sub["ht_over"], "ht_over"),
-            "ht_under": validacao(sub["ht_under"], "ht_under"),
-            "esc_over": validacao(sub["esc_over"], "esc_over"),
-            "esc_under": validacao(sub["esc_under"], "esc_under"),
+            "x12": validacao(sub["x12"], "x12", min_n),
+            "dc": validacao_dc(sub["dc"], min_n),
+            "gols_over": validacao(sub["gols_over"], "gols_over", min_n),
+            "gols_under": validacao(sub["gols_under"], "gols_under", min_n),
+            "ht_over": validacao(sub["ht_over"], "ht_over", min_n),
+            "ht_under": validacao(sub["ht_under"], "ht_under", min_n),
+            "esc_over": validacao(sub["esc_over"], "esc_over", min_n),
+            "esc_under": validacao(sub["esc_under"], "esc_under", min_n),
             "base_over15": round(base["h"] / base["n"], 4) if base["n"] else None,
         },
         "cal": {"x12": calibrar(sub["x12"], "x12"),
@@ -1040,6 +1041,7 @@ def bloco_validacao(sub):
 
 def validacao_por_grupos(valid):
     nome_liga = {lg["key"]: lg["nome"] for lg in ov.LEAGUES}
+    MN = 10
 
     def sub(pred):
         return {mkt: [x for x in items if pred(x)] for mkt, items in valid.items()}
@@ -1049,17 +1051,17 @@ def validacao_por_grupos(valid):
     for lk in ligas:
         nome = nome_liga.get(lk, lk)
         sg = sub(lambda x, lk=lk: x.get("liga") == lk)
-        entry = bloco_validacao(sg)
+        entry = bloco_validacao(sg, MN)
         entry["por_temporada"] = {s: bloco_validacao(
-            sub(lambda x, lk=lk, s=s: x.get("liga") == lk and x["season"] == s))
+            sub(lambda x, lk=lk, s=s: x.get("liga") == lk and x["season"] == s), MN)
             for s in sorted({x["season"] for x in sg["x12"]})}
         por_liga[nome] = entry
     por_temporada = {}
     for s in sorted({x["season"] for x in valid["x12"]}):
         sg = sub(lambda x, s=s: x["season"] == s)
-        entry = bloco_validacao(sg)
+        entry = bloco_validacao(sg, MN)
         entry["por_liga"] = {nome_liga.get(lk, lk): bloco_validacao(
-            sub(lambda x, lk=lk, s=s: x.get("liga") == lk and x["season"] == s))
+            sub(lambda x, lk=lk, s=s: x.get("liga") == lk and x["season"] == s), MN)
             for lk in ligas}
         por_temporada[s] = entry
     return {"por_liga": por_liga, "por_temporada": por_temporada}

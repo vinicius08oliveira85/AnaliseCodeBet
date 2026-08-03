@@ -132,7 +132,8 @@ h2 .n { color: var(--mut); font-weight: 500; letter-spacing: 0; text-transform: 
 .stat.cal .l { color: var(--accent); }
 .stat .v { font-size: 18px; font-weight: 800; letter-spacing: -.03em; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .stat .n { font-size: 10px; color: var(--mut); margin-top: 1px; }
-.stat.ok .v { color: var(--ok); }
+  .stat .n .warn { color: var(--med); font-weight: 500; margin-left: 4px; font-size: 9px; }
+  .stat.ok .v { color: var(--ok); }
 .stat.med .v { color: var(--med); }
 .stat.bad .v { color: var(--bad); }
 

@@ -285,8 +285,9 @@ function renderStats() {
   ];
   document.getElementById('stats').innerHTML = cards.map(([l, e, extra]) => {
     if (!e) return `<div class="stat"><div class="l">${l}</div><div class="v">—</div></div>`;
+    const warn = (e.n < 30) ? '<span class="warn">· amostra pequena</span>' : '';
     return `<div class="stat ${clsP(e.taxa)} ${extra}">
-      <div class="l">${l}</div><div class="v">${pct(e.taxa)}</div><div class="n">amostra: ${e.n}</div></div>`;
+      <div class="l">${l}</div><div class="v">${pct(e.taxa)}</div><div class="n">amostra: ${e.n}${warn}</div></div>`;
   }).join('');
 }
 
