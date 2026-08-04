@@ -420,18 +420,18 @@ function renderStatsSel() {
   const v = data.validacao;
   const ligas = v.por_liga ? Object.keys(v.por_liga).sort() : [];
   const temps = v.por_temporada ? Object.keys(v.por_temporada).sort() : [];
-  const linha = (lbl, itens, sel, cb) => {
+  const linha = (lbl, itens, sel, cb, comCnt = true) => {
     const b = (k, label) => {
       const at = sel === null ? k === '' : sel === k;
       return `<button class="${at ? 'act' : ''}" onclick="${cb}('${k}')">${esc(label)}</button>`;
     };
-    const op = itens.map(([k, label, n]) => b(k, label + (n ? ` <span class="cnt">(${n})</span>` : ''))).join('');
+    const op = itens.map(([k, label, n]) => b(k, label + (n && comCnt ? ` <span class="cnt">(${n})</span>` : ''))).join('');
     return `<div class="stat-linha"><span class="slbl">${lbl}</span>${op}</div>`;
   };
   const nl = k => (v.por_liga[k] ? v.por_liga[k].n : 0);
   const nt = k => (v.por_temporada[k] ? v.por_temporada[k].n : 0);
   document.getElementById('filtro-stat').innerHTML =
-    linha('Campeonato', [['', 'Todas']].concat(ligas.map(l => [l, l, nl(l)])), statsLiga, 'setStatLiga') +
+    linha('Campeonato', [['', 'Todas']].concat(ligas.map(l => [l, l, nl(l)])), statsLiga, 'setStatLiga', false) +
     linha('Temporada', [['', 'Todas']].concat(temps.map(t => [t, rotuloTemp(t), nt(t)])), statsTemp, 'setStatTemp');
 }
 

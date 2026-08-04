@@ -194,3 +194,9 @@ button.pick.top:hover { border-color: var(--med); }
 :root[data-theme="light"] .stat .bar, :root[data-theme="light"] .ap-stat .bar { background: rgba(15, 23, 42, .1); }
 :root[data-theme="light"] .meter .m-thr { background: rgba(255, 255, 255, .9); }
 :root[data-theme="light"] .search input::-webkit-search-cancel-button { filter: none; }
+
+/* ---------- Taxas de acerto: cards lado a lado ---------- */
+.stat { min-width: 0; }
+@media (max-width: 700px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
