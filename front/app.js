@@ -420,19 +420,17 @@ function renderStatsSel() {
   const v = data.validacao;
   const ligas = v.por_liga ? Object.keys(v.por_liga).sort() : [];
   const temps = v.por_temporada ? Object.keys(v.por_temporada).sort() : [];
-  const linha = (lbl, itens, sel, cb, comCnt = true) => {
+  const linha = (lbl, itens, sel, cb) => {
     const b = (k, label) => {
       const at = sel === null ? k === '' : sel === k;
       return `<button class="${at ? 'act' : ''}" onclick="${cb}('${k}')">${esc(label)}</button>`;
     };
-    const op = itens.map(([k, label, n]) => b(k, label + (n && comCnt ? ` <span class="cnt">(${n})</span>` : ''))).join('');
+    const op = itens.map(([k, label]) => b(k, label)).join('');
     return `<div class="stat-linha"><span class="slbl">${lbl}</span>${op}</div>`;
   };
-  const nl = k => (v.por_liga[k] ? v.por_liga[k].n : 0);
-  const nt = k => (v.por_temporada[k] ? v.por_temporada[k].n : 0);
   document.getElementById('filtro-stat').innerHTML =
-    linha('Campeonato', [['', 'Todas']].concat(ligas.map(l => [l, l, nl(l)])), statsLiga, 'setStatLiga', false) +
-    linha('Temporada', [['', 'Todas']].concat(temps.map(t => [t, rotuloTemp(t), nt(t)])), statsTemp, 'setStatTemp');
+    linha('Campeonato', [['', 'Todas']].concat(ligas.map(l => [l, l])), statsLiga, 'setStatLiga') +
+    linha('Temporada', [['', 'Todas']].concat(temps.map(t => [t, rotuloTemp(t)])), statsTemp, 'setStatTemp');
 }
 
 function setStatLiga(k) { statsLiga = k === '' ? null : k; renderStatsSel(); renderStats(); renderJogos(); }
@@ -557,11 +555,10 @@ function renderFiltroLiga() {
   const el = document.getElementById('filtro-liga');
   if (!el || !data) return;
   const ligas = [...new Set(data.jogos.map(g => g.liga))].sort();
-  const cnt = l => data.jogos.filter(g => g.liga === l).length;
   el.innerHTML =
-    `<button class="${buscaLiga ? '' : 'act'}" data-liga="__all__">Todas <span class="cnt">(${data.jogos.length})</span></button>` +
+    `<button class="${buscaLiga ? '' : 'act'}" data-liga="__all__">Todas</button>` +
     ligas.map(l =>
-      `<button class="${buscaLiga === l ? 'act' : ''}" data-liga="${esc(l)}">${esc(l)} <span class="cnt">(${cnt(l)})</span></button>`
+      `<button class="${buscaLiga === l ? 'act' : ''}" data-liga="${esc(l)}">${esc(l)}</button>`
     ).join('');
 }
 
