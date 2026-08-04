@@ -146,8 +146,16 @@ function corLiga(s) {
   return h;
 }
 
+// Horário de Brasília (UTC-3), igual ao campo hora_br gerado no backend
+const BR_OFFSET_MS = -3 * 60 * 60 * 1000;
+function brTime(iso) {
+  return new Date(new Date(iso).getTime() + BR_OFFSET_MS);
+}
+function brDayKey(iso) {
+  return brTime(iso).toISOString().slice(0, 10);
+}
 function rotuloData(iso) {
-  const d = new Date(iso);
+  const d = brTime(iso);
   const dias = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
   return dias[d.getUTCDay()] + ', ' + String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0');
 }
@@ -157,8 +165,8 @@ const MES_ABV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 
 
 function renderFiltro() {
   const el = document.getElementById('filtro');
-  const dias = [...new Set(data.jogos.map(g => g.data.slice(0, 10)))].sort();
-  const cnt = d => data.jogos.filter(g => g.data.slice(0, 10) === d).length;
+  const dias = [...new Set(data.jogos.map(g => brDayKey(g.data)))].sort();
+  const cnt = d => data.jogos.filter(g => brDayKey(g.data) === d).length;
   const diaTile = (key, iso, n) => {
     const d = new Date(iso);
     const dow = DIA_ABV[d.getUTCDay()];
@@ -168,7 +176,7 @@ function renderFiltro() {
       <span class="dow">${dow}</span><b class="day">${day}</b>
       <span class="mon">${mon}</span><span class="cnt">${n}</span></button>`;
   };
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = brDayKey(new Date().toISOString());
   const hojeChip = dias.includes(hoje)
     ? `<button class="${dataFiltro === hoje ? 'act' : ''}" onclick="setFiltro('${hoje}')">Hoje
       <span class="cnt">(${cnt(hoje)})</span></button>`
@@ -482,7 +490,7 @@ function renderJogos() {
     .map((g, i) => i)
     .filter(i => {
       const g = data.jogos[i];
-      if (dataFiltro && g.data.slice(0, 10) !== dataFiltro) return false;
+      if (dataFiltro && brDayKey(g.data) !== dataFiltro) return false;
       if (liga && g.liga !== liga) return false;
       if (buscaLiga && g.liga !== buscaLiga) return false;
       if (buscaTime && !(g.casa.toLowerCase().includes(buscaTime) || g.fora.toLowerCase().includes(buscaTime))) return false;
