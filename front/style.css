@@ -104,11 +104,6 @@ button { font-family: inherit; }
   background: linear-gradient(135deg, rgba(56, 189, 248, .18), rgba(99, 102, 241, .2));
   box-shadow: inset 0 0 0 1px rgba(56, 189, 248, .25), 0 8px 24px -12px rgba(56, 189, 248, .5);
 }
-.tab .cnt {
-  font-size: 9.5px; font-weight: 800; padding: 1px 7px; border-radius: 999px;
-  background: var(--surface3); color: var(--txt);
-}
-.tab.act .cnt { background: rgba(4, 18, 31, .35); color: var(--txt); }
 
 /* ---------- Layout ---------- */
 .wrap { max-width: 1440px; margin: 0 auto; padding: 10px clamp(12px, 3vw, 32px) 40px; }
@@ -147,17 +142,6 @@ h2 .n { color: var(--mut); font-weight: 500; letter-spacing: 0; text-transform: 
 }
 .hero-sub { color: var(--mut); font-size: 12.5px; max-width: 640px; margin-top: 6px; }
 .hero-sub b { color: var(--txt); }
-.hero-metrics { display: flex; gap: 10px; flex-wrap: wrap; position: relative; }
-.hm {
-  min-width: 96px; flex: 1 1 88px;
-  background: rgba(7, 10, 18, .55); border: 1px solid var(--border); border-radius: 12px;
-  padding: 9px 12px; text-align: center;
-  transition: border-color .18s, transform .18s, box-shadow .18s;
-}
-.hm:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 12px 26px -16px rgba(0, 0, 0, .8); }
-.hm-v { display: block; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--txt); letter-spacing: -.02em; }
-.hm-l { display: block; margin-top: 2px; font-size: 8.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); font-weight: 700; }
-
 /* ---------- Cards ---------- */
 .card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
@@ -175,7 +159,6 @@ h2 .n { color: var(--mut); font-weight: 500; letter-spacing: 0; text-transform: 
   border-top: 1px solid var(--border);
 }
 .stat-grupo:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
-.stat-grupo .cnt { font-size: 9px; font-weight: 600; color: var(--mut); letter-spacing: 0; }
 
 .stat {
   --c: var(--accent);
@@ -245,8 +228,6 @@ h2 .n { color: var(--mut); font-weight: 500; letter-spacing: 0; text-transform: 
   color: var(--onaccent); border-color: transparent; font-weight: 800;
   box-shadow: 0 6px 18px -8px rgba(56, 189, 248, .7);
 }
-.filtro button .cnt { color: var(--mut); font-weight: 500; }
-.filtro button.act .cnt { color: rgba(4, 18, 31, .6); }
 .filtro.stat { flex-direction: column; align-items: stretch; gap: 5px; }
 .stat-linha { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .slbl {
@@ -595,11 +576,6 @@ textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3
   box-shadow: inset 0 0 0 1px rgba(56, 189, 248, .22);
 }
 .menu-item.act svg { color: var(--accent); }
-.menu-item .cnt {
-  font-size: 9px; font-weight: 800; min-width: 16px; padding: 0 5px; text-align: center;
-  border-radius: 999px; background: var(--surface3); color: var(--txt);
-}
-.menu-item.act .cnt { color: var(--onaccent); background: rgba(4, 18, 31, .3); }
 .menu-sep { width: 1px; height: 18px; background: var(--border); flex: none; margin: 0 6px; }
 
 .sec { scroll-margin-top: 118px; }
@@ -616,8 +592,6 @@ textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3
 .filtro button.dt .dow { color: var(--mut); font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; }
 .filtro button.dt b.day { display: block; color: var(--txt); font-size: 21px; font-weight: 800; margin: 0; line-height: 1; }
 .filtro button.dt .mon { color: var(--mut); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; }
-.filtro button.dt .cnt { color: var(--accent); font-size: 9.5px; font-weight: 700; margin-top: 2px; }
-.filtro button.dt.act .cnt { color: var(--onaccent); background: rgba(4, 18, 31, .6); }
 @media (max-width: 700px) {
   .filtro button.dt { width: 60px; }
   .filtro button.dt b.day { font-size: 19px; }
@@ -677,7 +651,6 @@ input, select { accent-color: var(--accent); }
 }
 .combo-bar .cb-info { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .cb-title { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--mut); }
-.cb-n { font-size: 13px; font-weight: 800; }
 .cb-p { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .cb-p.ok { color: var(--ok); } .cb-p.med { color: var(--med); } .cb-p.bad { color: var(--bad); }
 .combo-bar .cb-actions { display: flex; align-items: center; gap: 8px; }

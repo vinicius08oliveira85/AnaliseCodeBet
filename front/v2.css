@@ -10,12 +10,8 @@ body { font-size: 15px; line-height: 1.55; }
 h2 { font-size: 12px; }
 h3 { font-size: 14px; }
 .tab { font-size: 13px; }
-.tab .cnt { font-size: 11px; }
 .hero-sub { font-size: 13.5px; }
-.hm-v { font-size: 19px; }
-.hm-l { font-size: 10px; }
 .stat-grupo { font-size: 12px; }
-.stat-grupo .cnt { font-size: 10.5px; }
 .stat .l { font-size: 11px; }
 .stat .v { font-size: 20px; }
 .stat .n { font-size: 11.5px; }
@@ -74,15 +70,12 @@ textarea { font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospa
 .foot-keys { font-size: 11.5px; }
 .foot-keys kbd { font-size: 11px; }
 .menu-item { font-size: 13px; }
-.menu-item .cnt { font-size: 10.5px; }
 .filtro button.dt .dow { font-size: 11px; }
 .filtro button.dt .mon { font-size: 10.5px; }
-.filtro button.dt .cnt { font-size: 11px; }
 .search input { font-size: 13.5px; }
 select.sort { font-size: 13px; }
 .auto-refresh { font-size: 12.5px; }
 .cb-title { font-size: 11px; }
-.cb-n { font-size: 14.5px; }
 .cb-p { font-size: 14px; }
 .meter-lbl { font-size: 12px; }
 .toast { font-size: 14px; }
@@ -186,7 +179,6 @@ button.pick.top:hover { border-color: var(--med); }
 }
 :root[data-theme="light"] .site-head { background: rgba(255, 255, 255, .86); box-shadow: 0 14px 34px -22px rgba(15, 23, 42, .35); }
 :root[data-theme="light"] .menu-bar { background: rgba(255, 255, 255, .6); }
-:root[data-theme="light"] .hm { background: rgba(255, 255, 255, .7); }
 :root[data-theme="light"] .filtro button.dt { background: rgba(255, 255, 255, .6); border-color: rgba(15, 23, 42, .08); }
 :root[data-theme="light"] .auto .leg { background: rgba(255, 255, 255, .65); }
 :root[data-theme="light"] .combo-bar { background: rgba(255, 255, 255, .95); box-shadow: 0 24px 50px -20px rgba(15, 23, 42, .35), inset 0 1px 0 0 rgba(255, 255, 255, .6); }
