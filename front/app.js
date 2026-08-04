@@ -19,6 +19,52 @@ let buscaTimer = null;
 let apostas = carregarApostas();
 const BANKROLL_KEY = 'banca';
 
+// ---- Tema claro/escuro ----
+function alternarTema() {
+  const atual = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = atual;
+  try { localStorage.setItem('tema', atual); } catch (e) {}
+  const btn = document.getElementById('tema-btn');
+  if (btn) btn.textContent = atual === 'light' ? '🌙' : '☀️';
+  toast(atual === 'light' ? 'Tema claro ativado' : 'Tema escuro ativado', 'ok');
+}
+
+// ---- Menu mobile (hambúrguer) ----
+function alternarMenu() {
+  const m = document.querySelector('.menu');
+  if (m) m.classList.toggle('aberto');
+}
+
+// ---- Guia de boas-vindas ----
+function fecharBoasVindas() {
+  const el = document.getElementById('bemvindo');
+  if (el) el.remove();
+  try { localStorage.setItem('bv_visto', '1'); } catch (e) {}
+}
+
+// ---- Ações de UI (tema, menu, boas-vindas) ----
+(function () {
+  const temaBtn = document.getElementById('tema-btn');
+  if (temaBtn) {
+    temaBtn.addEventListener('click', alternarTema);
+    temaBtn.textContent = document.documentElement.dataset.theme === 'light' ? '🌙' : '☀️';
+  }
+  const menuBtn = document.getElementById('menu-toggle');
+  if (menuBtn) menuBtn.addEventListener('click', alternarMenu);
+  let bvVisto = false;
+  try { bvVisto = localStorage.getItem('bv_visto') === '1'; } catch (e) {}
+  if (bvVisto) {
+    const bv = document.getElementById('bemvindo');
+    if (bv) bv.remove();
+  }
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') {
+      const m = document.querySelector('.menu.aberto');
+      if (m) m.classList.remove('aberto');
+    }
+  });
+})();
+
 function carregarBanca() {
   try {
     const v = parseFloat(localStorage.getItem(BANKROLL_KEY));
@@ -493,9 +539,17 @@ function renderStats() {
   document.getElementById('stats').innerHTML = destHtml + html;
 }
 
+const TIPS_MERCADO = {
+  'Resultado': 'Quem vence a partida: Casa (1), Empate (X) ou Fora (2).',
+  'Dupla chance': 'Duas opções juntas: 1X (casa ou empate), X2 (empate ou fora), 12 (sem empate).',
+  'Gols': 'Total de gols do jogo: mais de ou menos de um valor (ex.: mais de 2,5 = 3 gols ou mais).',
+  'Primeiro tempo': 'Gols marcados apenas no primeiro tempo.',
+  'Escanteios': 'Total de escanteios da partida.',
+};
 function mktRow(j, nome, buts) {
   const ic = nome === 'Resultado' ? 'target' : nome === 'Gols' ? 'ball' : nome === 'Primeiro tempo' ? 'clock' : nome === 'Escanteios' ? 'corner' : null;
-  const label = `<span class="mkt-name">${ic ? ico(ic, 11) : ''}${nome}</span>`;
+  const tip = TIPS_MERCADO[nome] || '';
+  const label = `<span class="mkt-name"${tip ? ` data-tip="${tip}"` : ''}>${ic ? ico(ic, 11) : ''}${nome}</span>`;
   if (!buts) return `<div class="mkt-row">${label}<span class="sem">sem dados</span></div>`;
   return `<div class="mkt-row">${label}${buts}</div>`;
 }

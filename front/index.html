@@ -8,6 +8,18 @@
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="%2338bdf8"/><stop offset="1" stop-color="%236366f1"/></linearGradient></defs><rect width="24" height="24" rx="6" fill="url(%23g)"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="%2304121f" stroke-width="2"/><circle cx="12" cy="12" r="2" fill="%2304121f"/></svg>'>
 <title>Análise de Apostas — modelo de futebol</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="v2.css">
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem('tema');
+    if (t !== 'light' && t !== 'dark') {
+      t = (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    }
+    document.documentElement.dataset.theme = t;
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 <header class="site-head">
@@ -25,6 +37,10 @@
           <h1>Análise de Apostas</h1>
           <div class="sub" id="sub">carregando dados…</div>
         </div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="tema-btn" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">☀️</button>
+        <button class="icon-btn menu-toggle" id="menu-toggle" title="Abrir menu" aria-label="Abrir menu">☰</button>
       </div>
     </div>
   </div>
@@ -76,9 +92,35 @@
     </div>
   </section>
 
+  <section class="bemvindo" id="bemvindo" aria-label="Como usar">
+    <div class="bemvindo-txt">
+      <h2 class="bemvindo-titulo">👋 Bem-vindo — como usar em 3 passos</h2>
+      <ol class="bemvindo-passos">
+        <li><b>Escolha um jogo</b> e clique no palpite com <span class="star">✦</span> (a melhor chance daquele mercado).</li>
+        <li><b>Monte a combinação</b> e veja a chance estimada de acerto no painel ao lado.</li>
+        <li><b>Defina odd e valor</b> (o site sugere pela regra de Kelly) e registre a aposta para acompanhar.</li>
+      </ol>
+    </div>
+    <button class="bemvindo-x" onclick="fecharBoasVindas()" title="Fechar guia" aria-label="Fechar guia de boas-vindas">✕</button>
+  </section>
+
+  <details class="legenda" open>
+    <summary>📖 Entenda os termos (guia rápido)</summary>
+    <dl class="legenda-glossario">
+      <div><dt>1X2 (Resultado)</dt><dd>Palpite em quem vence: <b>1</b> casa, <b>X</b> empate ou <b>2</b> visitante.</dd></div>
+      <div><dt>Over / Under (mais de / menos de)</dt><dd>Aposta no total de gols (ou escanteios): mais de 2,5 = 3 gols ou mais; menos de 2,5 = até 2 gols.</dd></div>
+      <div><dt>Dupla chance</dt><dd>Duas opções juntas: 1X (casa ou empate), X2 (empate ou fora), 12 (sem empate). Chance maior, odd menor.</dd></div>
+      <div><dt>Odd justa</dt><dd>Cotação que equilibra a aposta com a chance do modelo (1 ÷ probabilidade). Se a casa paga mais que isso, há valor.</dd></div>
+      <div><dt>Taxa base</dt><dd>Acerto médio apostando sempre no mesmo mercado, sem usar o modelo.</dd></div>
+      <div><dt>Lift</dt><dd>Quanto o modelo melhora em relação à taxa base, em pontos percentuais (pp).</dd></div>
+      <div><dt>Peso SOT</dt><dd>Peso dado aos chutes no alvo (shots on target) ao estimar a força de cada time.</dd></div>
+      <div><dt>Kelly</dt><dd>Regra matemática que sugere quanto apostar da banca, conforme a vantagem da aposta.</dd></div>
+    </dl>
+  </details>
+
   <section id="sec-prev">
     <section class="sec" id="sec-taxas">
-      <h2>Taxas de acerto <span class="n" id="meta1"></span></h2>
+      <h2 data-tip="Percentual de acerto do modelo em testes fora de amostra (quanto maior, melhor)">Taxas de acerto <span class="n" id="meta1"></span></h2>
       <div class="filtro" id="filtro-stat"></div>
       <div class="stats" id="stats">
         <div class="skeleton" style="height:74px"></div>
@@ -92,17 +134,17 @@
 
     <div class="grid2">
       <section class="sec" id="sec-combo">
-        <h2>Sua combinação <span class="n" id="combo-n"></span></h2>
+        <h2 data-tip="Palpites que você selecionou nos jogos; veja a chance estimada de acertar todos juntos">Sua combinação <span class="n" id="combo-n"></span></h2>
         <div class="card" id="combo"></div>
       </section>
       <section class="sec" id="sec-auto">
-        <h2>Sugestões automáticas</h2>
+        <h2 data-tip="Combinações sugeridas pelo modelo com alta expectativa de acerto segundo a validação">Sugestões automáticas</h2>
         <div class="card" id="auto"></div>
       </section>
     </div>
 
     <section class="sec" id="sec-jogos">
-      <h2>Jogos e previsões <span class="n" id="meta2"></span></h2>
+      <h2 data-tip="Clique em um palpite (✦ = melhor chance do mercado) para montar sua combinação">Jogos e previsões <span class="n" id="meta2"></span></h2>
       <div class="jogos-tools">
         <div class="search">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -126,7 +168,7 @@
   </section>
 
   <section class="sec" id="sec-vivo" hidden>
-    <h2>Jogos finalizados <span class="n" id="vivo-meta"></span>
+    <h2 data-tip="Jogos já encerrados com o resultado dos palpites do modelo">Jogos finalizados <span class="n" id="vivo-meta"></span>
       <button class="btn refresh" onclick="recarregar()" title="Recarregar dados">↻ atualizar</button>
     </h2>
     <label class="auto-refresh" title="Recarrega o analise.json a cada 10 minutos enquanto esta seção estiver aberta">
@@ -137,7 +179,7 @@
   </section>
 
   <section class="sec" id="sec-apostas" hidden>
-    <h2>Apostas <span class="n" id="apostas-n"></span>
+    <h2 data-tip="Registre suas apostas, defina a banca e acompanhe o resultado e o retorno">Apostas <span class="n" id="apostas-n"></span>
       <button class="btn mini" onclick="exportarApostas()" title="Baixar apostas em CSV">Exportar CSV</button>
       <button class="btn mini" onclick="limparApostas()" title="Apagar todo o histórico">Limpar histórico</button>
     </h2>
