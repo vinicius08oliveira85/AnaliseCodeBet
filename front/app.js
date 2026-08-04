@@ -202,24 +202,21 @@ const MES_ABV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 
 function renderFiltro() {
   const el = document.getElementById('filtro');
   const dias = [...new Set(data.jogos.map(g => brDayKey(g.data)))].sort();
-  const cnt = d => data.jogos.filter(g => brDayKey(g.data) === d).length;
-  const diaTile = (key, iso, n) => {
+  const diaTile = (key, iso) => {
     const d = new Date(iso);
     const dow = DIA_ABV[d.getUTCDay()];
     const day = String(d.getUTCDate());
     const mon = MES_ABV[d.getUTCMonth()];
     return `<button class="${dataFiltro === key ? 'act' : ''} dt" onclick="setFiltro('${key}')">
       <span class="dow">${dow}</span><b class="day">${day}</b>
-      <span class="mon">${mon}</span><span class="cnt">${n}</span></button>`;
+      <span class="mon">${mon}</span></button>`;
   };
   const hoje = brDayKey(new Date().toISOString());
   const hojeChip = dias.includes(hoje)
-    ? `<button class="${dataFiltro === hoje ? 'act' : ''}" onclick="setFiltro('${hoje}')">Hoje
-      <span class="cnt">(${cnt(hoje)})</span></button>`
+    ? `<button class="${dataFiltro === hoje ? 'act' : ''}" onclick="setFiltro('${hoje}')">Hoje</button>`
     : '';
-  el.innerHTML = hojeChip + `<button class="${dataFiltro ? '' : 'act'}" onclick="setFiltro('')">Todos
-      <span class="cnt">(${data.jogos.length})</span></button>` +
-    dias.map(d => diaTile(d, d, cnt(d))).join('');
+  el.innerHTML = hojeChip + `<button class="${dataFiltro ? '' : 'act'}" onclick="setFiltro('')">Todos</button>` +
+    dias.map(d => diaTile(d, d)).join('');
 }
 
 function setFiltro(key) {
@@ -519,7 +516,7 @@ function renderStats() {
       const bar = `<div class="bar" style="--w:${Math.round(g.e.taxa * 100)}%">${bmark}</div>`;
       return `<div class="stat ${clsP(g.e.taxa)}"><div class="l">${esc(g.label)}</div><div class="v">${pct(g.e.taxa)}</div><div class="n">${g.e.n} jogos testados${warn}${liftHtml}</div>${bar}</div>`;
     }).join('');
-    return `<div class="stat-grupo">${esc(grupo)} <span class="cnt">(${items.length})</span></div>${cards}`;
+    return `<div class="stat-grupo">${esc(grupo)}</div>${cards}`;
   }).join('');
   document.getElementById('stats').innerHTML = destHtml + html;
 }
