@@ -269,7 +269,7 @@ function renderAoVivo() {
   if (!av || !av.n) {
     document.getElementById('vivo-stats').innerHTML = '';
     document.getElementById('vivo-meta').textContent = '';
-    el.innerHTML = '<div class="vazio">Nenhum jogo previsto foi finalizado ainda. Rode o pipeline periodicamente ' +
+    el.innerHTML = '<div class="vazio">Nenhum jogo finalizado ainda. Rode o pipeline periodicamente ' +
       '(ex.: uma vez ao dia) para coletar os resultados dos jogos já previstos.</div>';
     return;
   }
@@ -1126,7 +1126,7 @@ document.addEventListener('keydown', ev => {
   if (sec) irPara(sec);
 });
 
-// ---- Atualização automática (seção ao vivo) ----
+// ---- Atualização automática (seção finalizados) ----
 let refreshTimer = null;
 const autoEl = document.getElementById('auto-refresh');
 if (autoEl) {
