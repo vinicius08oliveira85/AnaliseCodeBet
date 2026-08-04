@@ -44,15 +44,20 @@ function alternarMenu() {
   }
   const menuBtn = document.getElementById('menu-toggle');
   if (menuBtn) menuBtn.addEventListener('click', alternarMenu);
-  // remove o contador de jogos do cabeçalho (linha definida fora do alcance do editor)
-  const obsSub = new MutationObserver(() => {
+  // remove o contador de jogos do cabeçalho e uniformiza textos (regiões fora do alcance do editor)
+  const obsTxt = new MutationObserver(() => {
     const el = document.getElementById('sub');
     if (el) {
       const novo = el.textContent.replace(/\s*·\s*\d+ jogos/, '');
       if (novo !== el.textContent) el.textContent = novo;
     }
+    document.querySelectorAll('.vazio').forEach(vz => {
+      const t = vz.textContent;
+      const s2 = t.replace(' e o resultado é atualizado quando o pipeline roda e a página é recarregada', '');
+      if (s2 !== t) vz.textContent = s2;
+    });
   });
-  obsSub.observe(document.body, { childList: true, subtree: true, characterData: true });
+  obsTxt.observe(document.body, { childList: true, subtree: true, characterData: true });
   document.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
       const m = document.querySelector('.menu.aberto');
@@ -307,8 +312,7 @@ function renderAoVivo() {
   if (!av || !av.n) {
     document.getElementById('vivo-stats').innerHTML = '';
     document.getElementById('vivo-meta').textContent = '';
-    el.innerHTML = '<div class="vazio">Nenhum jogo finalizado ainda. Rode o pipeline periodicamente ' +
-      '(ex.: uma vez ao dia) para coletar os resultados dos jogos já previstos.</div>';
+    el.innerHTML = '<div class="vazio">Nenhum jogo finalizado ainda. Os resultados são atualizados quando o modelo processa os jogos previstos.</div>';
     return;
   }
   document.getElementById('vivo-meta').textContent = '· acerto ' + pct(av.taxa) +
@@ -699,7 +703,7 @@ function renderJogos() {
 function renderCombo() {
   const el = document.getElementById('combo');
   if (!picks.length) {
-    el.innerHTML = '<div class="vazio">Clique em um palpite (✦ = melhor P) nos jogos acima para montar a combinação.</div>';
+    el.innerHTML = '<div class="vazio">Clique em um palpite (✦ = melhor chance) nos jogos acima para montar a combinação.</div>';
     return;
   }
   let pTot = 1, eTot = 1;
