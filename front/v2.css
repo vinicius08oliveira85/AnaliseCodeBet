@@ -135,49 +135,6 @@ select.sort { font-size: 13px; }
   .sec { scroll-margin-top: 128px; }
 }
 
-/* ---------- Banner de boas-vindas ---------- */
-.bemvindo {
-  position: relative;
-  display: flex; align-items: flex-start; gap: 12px;
-  margin: 10px 0 4px; padding: 14px 16px;
-  border: 1px solid var(--border2); border-radius: 16px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, .1), rgba(99, 102, 241, .12) 60%);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, .05);
-  animation: fadeUp .4s ease both;
-}
-.bemvindo-titulo { margin: 0 0 6px; font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--txt); }
-.bemvindo-titulo::before { display: none; }
-.bemvindo-passos { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
-.bemvindo-passos li { font-size: 13.5px; color: var(--mut); }
-.bemvindo-passos li b { color: var(--txt); }
-.bemvindo-passos .star { color: var(--med); }
-.bemvindo-x {
-  flex: none; margin-left: auto;
-  border: 1px solid var(--border); background: var(--surface2); color: var(--mut);
-  width: 28px; height: 28px; border-radius: 9px; cursor: pointer;
-  display: grid; place-items: center; font-size: 12px;
-  transition: color .15s, background .15s, border-color .15s, transform .15s;
-}
-.bemvindo-x:hover { color: var(--bad); background: rgba(251, 113, 133, .12); border-color: rgba(251, 113, 133, .3); transform: scale(1.08); }
-
-/* ---------- Legenda / glossário ---------- */
-.legenda {
-  margin: 4px 0 10px; padding: 10px 14px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-}
-.legenda summary { font-size: 13px; }
-.legenda-glossario {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 18px;
-  margin-top: 10px;
-}
-.legenda-glossario > div {
-  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
-  padding: 7px 10px;
-}
-.legenda-glossario dt { font-weight: 800; font-size: 12.5px; color: var(--txt); }
-.legenda-glossario dd { color: var(--mut); font-size: 12.5px; margin: 3px 0 0; line-height: 1.5; }
-.legenda-glossario dd b { color: var(--txt); }
-
 /* ---------- Estados vazios mais amigáveis ---------- */
 .vazio {
   display: flex; align-items: center; justify-content: center; gap: 9px;
@@ -237,4 +194,3 @@ button.pick.top:hover { border-color: var(--med); }
 :root[data-theme="light"] .stat .bar, :root[data-theme="light"] .ap-stat .bar { background: rgba(15, 23, 42, .1); }
 :root[data-theme="light"] .meter .m-thr { background: rgba(255, 255, 255, .9); }
 :root[data-theme="light"] .search input::-webkit-search-cancel-button { filter: none; }
-:root[data-theme="light"] .bemvindo { background: linear-gradient(135deg, rgba(2, 132, 199, .1), rgba(99, 102, 241, .12) 60%); }

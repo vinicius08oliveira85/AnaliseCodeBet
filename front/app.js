@@ -35,14 +35,7 @@ function alternarMenu() {
   if (m) m.classList.toggle('aberto');
 }
 
-// ---- Guia de boas-vindas ----
-function fecharBoasVindas() {
-  const el = document.getElementById('bemvindo');
-  if (el) el.remove();
-  try { localStorage.setItem('bv_visto', '1'); } catch (e) {}
-}
-
-// ---- Ações de UI (tema, menu, boas-vindas) ----
+// ---- Ações de UI (tema, menu) ----
 (function () {
   const temaBtn = document.getElementById('tema-btn');
   if (temaBtn) {
@@ -51,12 +44,6 @@ function fecharBoasVindas() {
   }
   const menuBtn = document.getElementById('menu-toggle');
   if (menuBtn) menuBtn.addEventListener('click', alternarMenu);
-  let bvVisto = false;
-  try { bvVisto = localStorage.getItem('bv_visto') === '1'; } catch (e) {}
-  if (bvVisto) {
-    const bv = document.getElementById('bemvindo');
-    if (bv) bv.remove();
-  }
   document.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
       const m = document.querySelector('.menu.aberto');
@@ -115,7 +102,7 @@ function salvarApostas() {
 }
 
 function pct(x) { return (100 * x).toFixed(1) + '%'; }
-function fmtLift(x) { return (x >= 0 ? '+' : '') + (100 * x).toFixed(1) + 'pp'; }
+function fmtLift(x) { return (x >= 0 ? '+' : '') + (100 * x).toFixed(1).replace('.', ',') + ' p.p.'; }
 function clsLift(x) { return x >= 0.03 ? 'ok' : x <= -0.03 ? 'bad' : 'med'; }
 
 function clsP(x) { return x >= 0.75 ? 'ok' : x >= 0.6 ? 'med' : 'bad'; }
@@ -297,8 +284,8 @@ function recarregar() {
       renderStats();
       renderJogos();
       renderCombo();
-      autoCombos();
-      renderAoVivo();
+    autoCombos();
+    renderAoVivo();
       renderApostas();
     })
     .catch(e => {
@@ -470,7 +457,7 @@ function renderStats() {
     const s = v.por_temporada[statsTemp];
     if (s) { vv = s.validacao; nome = rotuloTemp(statsTemp); }
   }
-  document.getElementById('meta1').textContent = '· validação fora de amostra' + (nome ? ' — ' + nome : '');
+  document.getElementById('meta1').textContent = '· testado em jogos passados' + (nome ? ' — ' + nome : '');
   const bases = vv.bases || {};
   const grupos = [];
   const add = (grupo, label, e, b) => {
@@ -478,15 +465,15 @@ function renderStats() {
     grupos.push({ grupo, label, e, b, lift: (b != null) ? e.taxa - b : null });
   };
 
-  // Resultado (todos os thresholds)
+  // Resultado (todos os limiares)
   if (vv.x12) for (const t of Object.keys(vv.x12)) {
-    add('Resultado', 'Resultado P≥' + Math.round(Number(t) * 100) + '%', vv.x12[t], bases.x12 != null ? bases.x12 : null);
+    add('Resultado', 'Resultado com chance ≥' + Math.round(Number(t) * 100) + '%', vv.x12[t], bases.x12 != null ? bases.x12 : null);
   }
-  // Dupla chance (todas as variantes e thresholds)
+  // Dupla chance (todas as variantes e limiares)
   if (vv.dc) for (const out of Object.keys(vv.dc)) {
     const tbl = vv.dc[out] || {};
     for (const t of Object.keys(tbl)) {
-      add('Dupla chance', 'Dupla ' + out.toUpperCase() + ' P≥' + Math.round(Number(t) * 100) + '%',
+      add('Dupla chance', 'Dupla ' + out.toUpperCase() + ' com chance ≥' + Math.round(Number(t) * 100) + '%',
           tbl[t], bases.dc && bases.dc[out] != null ? bases.dc[out] : null);
     }
   }
@@ -507,18 +494,18 @@ function renderStats() {
   linhas(vv.esc_over, 'Escanteios', 'Esc: mais de', 'esc', 'over');
   linhas(vv.esc_under, 'Escanteios', 'Esc: menos de', 'esc', 'under');
 
-  // ranking: melhores/piores por lift + mais amostras (sobre TODOS os mercados)
+  // destaque: melhores/piores vs apostar sempre + mais jogos testados (sobre TODOS os mercados)
   const comLift = grupos.filter(g => g.lift != null && g.e.n >= 30);
   let destHtml = '';
   if (comLift.length >= 2) {
     const best = comLift.reduce((a, b) => b.lift > a.lift ? b : a);
     const worst = comLift.reduce((a, b) => b.lift < a.lift ? b : a);
     const most = comLift.reduce((a, b) => b.e.n > a.e.n ? b : a);
-    const dCard = (label, d, cls) => `<div class="stat ${cls}"><div class="l">${label}</div><div class="v">${pct(d.e.taxa)}</div><div class="n">${esc(d.label)} · n=${d.e.n} · <b class="lift ${clsLift(d.lift)}">${fmtLift(d.lift)}</b></div><div class="bar" style="--w:${Math.round(d.e.taxa * 100)}%"></div></div>`;
-    destHtml = `<div class="stats dest-row">${dCard('Maior lift', best, 'ok')}${dCard('Mais amostras', most, '')}${dCard('Menor lift', worst, 'bad')}</div>`;
+    const dCard = (label, d, cls) => `<div class="stat ${cls}"><div class="l">${label}</div><div class="v">${pct(d.e.taxa)}</div><div class="n">${esc(d.label)} · ${d.e.n} jogos · <b class="lift ${clsLift(d.lift)}">${fmtLift(d.lift)}</b></div><div class="bar" style="--w:${Math.round(d.e.taxa * 100)}%"></div></div>`;
+    destHtml = `<div class="stats dest-row">${dCard('Melhor que apostar sempre', best, 'ok')}${dCard('Mais jogos testados', most, '')}${dCard('Pior que apostar sempre', worst, 'bad')}</div>`;
   }
 
-  // grade completa, agrupada por categoria, ordenada por lift dentro do grupo
+  // grade completa, agrupada por categoria, ordenada por ganho vs apostar sempre dentro do grupo
   const ord = ['Resultado', 'Dupla chance', 'Gols', 'Primeiro tempo', 'Escanteios'];
   const html = ord.map(grupo => {
     const items = grupos.filter(g => g.grupo === grupo)
@@ -526,13 +513,13 @@ function renderStats() {
     if (!items.length) return '';
     const cards = items.map(g => {
       const lv = g.lift;
-      const warn = (g.e.n < 30) ? '<span class="warn">· amostra pequena</span>' : '';
+      const warn = (g.e.n < 30) ? '<span class="warn">· poucos jogos</span>' : '';
       const liftHtml = (lv != null && g.b != null)
-        ? `<span class="n-lift ${clsLift(lv)}" title="Taxa base (apostar sempre, sem modelo): ${pct(g.b)}">${fmtLift(lv)} vs base ${pct(g.b)}</span>` : '';
+        ? `<span class="n-lift ${clsLift(lv)}" title="Apostar sempre neste mercado, sem o modelo, acertaria ${pct(g.b)}">${fmtLift(lv)} vs apostar sempre (${pct(g.b)})</span>` : '';
       const bmark = (g.b != null && g.b > 0 && g.b < 1)
-        ? `<span class="bmark" style="left:${Math.round(g.b * 100)}%" title="taxa base: ${pct(g.b)}"></span>` : '';
+        ? `<span class="bmark" style="left:${Math.round(g.b * 100)}%" title="apostar sempre: ${pct(g.b)}"></span>` : '';
       const bar = `<div class="bar" style="--w:${Math.round(g.e.taxa * 100)}%">${bmark}</div>`;
-      return `<div class="stat ${clsP(g.e.taxa)}"><div class="l">${esc(g.label)}</div><div class="v">${pct(g.e.taxa)}</div><div class="n">amostra: ${g.e.n}${warn}${liftHtml}</div>${bar}</div>`;
+      return `<div class="stat ${clsP(g.e.taxa)}"><div class="l">${esc(g.label)}</div><div class="v">${pct(g.e.taxa)}</div><div class="n">${g.e.n} jogos testados${warn}${liftHtml}</div>${bar}</div>`;
     }).join('');
     return `<div class="stat-grupo">${esc(grupo)} <span class="cnt">(${items.length})</span></div>${cards}`;
   }).join('');
