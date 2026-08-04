@@ -69,6 +69,9 @@ function salvarApostas() {
 }
 
 function pct(x) { return (100 * x).toFixed(1) + '%'; }
+function fmtLift(x) { return (x >= 0 ? '+' : '') + (100 * x).toFixed(1) + 'pp'; }
+function clsLift(x) { return x >= 0.03 ? 'ok' : x <= -0.03 ? 'bad' : 'med'; }
+
 function clsP(x) { return x >= 0.75 ? 'ok' : x >= 0.6 ? 'med' : 'bad'; }
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -422,34 +425,72 @@ function renderStats() {
     if (s) { vv = s.validacao; nome = rotuloTemp(statsTemp); }
   }
   document.getElementById('meta1').textContent = '· validação fora de amostra' + (nome ? ' — ' + nome : '');
-  const cards = [
-    ['Resultado (probabilidade ≥ 75%)', vv.x12['0.75'], ''],
-    ['Dupla chance 1X (≥ 75%)', vv.dc && vv.dc['1x'] && vv.dc['1x']['0.75'], ''],
-    ['Dupla chance X2 (≥ 75%)', vv.dc && vv.dc['x2'] && vv.dc['x2']['0.75'], ''],
-    ['Gols: mais de 1.5', vv.gols_over['1.5'], ''],
-    ['Gols: menos de 5.5', vv.gols_under['5.5'], ''],
-    ['Primeiro tempo: mais de 0.5', vv.ht_over['0.5'], ''],
-    ['Primeiro tempo: menos de 2.5', vv.ht_under['2.5'], ''],
-    ['Escanteios: mais de 7.5', vv.esc_over['7.5'], ''],
-    ['Escanteios: menos de 12.5', vv.esc_under['12.5'], ''],
-  ];
-  const dest = cards.filter(([, e]) => e && e.n >= 30 && typeof e.taxa === 'number')
-    .map(([l, e]) => ({ l, taxa: e.taxa, n: e.n }));
-  let destHtml = '';
-  if (dest.length >= 2) {
-    const best = dest.reduce((a, b) => b.taxa > a.taxa ? b : a);
-    const worst = dest.reduce((a, b) => b.taxa < a.taxa ? b : a);
-    const most = dest.reduce((a, b) => b.n > a.n ? b : a);
-    const dCard = (label, d, cls) => `<div class="stat ${cls}"><div class="l">${label}</div><div class="v">${pct(d.taxa)}</div><div class="n">${esc(d.l)} · n=${d.n}</div><div class="bar" style="--w:${Math.round(d.taxa * 100)}%"></div></div>`;
-    destHtml = `<div class="stats dest-row">${dCard('Melhor mercado', best, 'ok')}${dCard('Mais amostras', most, '')}${dCard('Pior mercado', worst, 'bad')}</div>`;
+  const bases = vv.bases || {};
+  const grupos = [];
+  const add = (grupo, label, e, b) => {
+    if (!e || typeof e.taxa !== 'number') return;
+    grupos.push({ grupo, label, e, b, lift: (b != null) ? e.taxa - b : null });
+  };
+
+  // Resultado (todos os thresholds)
+  if (vv.x12) for (const t of Object.keys(vv.x12)) {
+    add('Resultado', 'Resultado P≥' + Math.round(Number(t) * 100) + '%', vv.x12[t], bases.x12 != null ? bases.x12 : null);
   }
-  document.getElementById('stats').innerHTML = destHtml + cards.map(([l, e, extra]) => {
-    if (!e) return `<div class="stat"><div class="l">${l}</div><div class="v">—</div></div>`;
-    const warn = (e.n < 30) ? '<span class="warn">· amostra pequena</span>' : '';
-    const bar = (typeof e.taxa === 'number' && isFinite(e.taxa)) ? `<div class="bar" style="--w:${Math.round(e.taxa * 100)}%"></div>` : '';
-    return `<div class="stat ${clsP(e.taxa)} ${extra}">
-      <div class="l">${l}</div><div class="v">${pct(e.taxa)}</div><div class="n">amostra: ${e.n}${warn}</div>${bar}</div>`;
+  // Dupla chance (todas as variantes e thresholds)
+  if (vv.dc) for (const out of Object.keys(vv.dc)) {
+    const tbl = vv.dc[out] || {};
+    for (const t of Object.keys(tbl)) {
+      add('Dupla chance', 'Dupla ' + out.toUpperCase() + ' P≥' + Math.round(Number(t) * 100) + '%',
+          tbl[t], bases.dc && bases.dc[out] != null ? bases.dc[out] : null);
+    }
+  }
+  // Gols / 1º tempo / Escanteios (todas as linhas)
+  const linhas = (mkts, grupo, rotulo, chave, lado) => {
+    for (const [linha, e] of Object.entries(mkts)) {
+      let b = null;
+      if (bases[chave] && bases[chave][linha] != null) {
+        b = lado === 'over' ? bases[chave][linha].over : 1 - bases[chave][linha].over;
+      }
+      add(grupo, rotulo + ' ' + linha, e, b);
+    }
+  };
+  linhas(vv.gols_over, 'Gols', 'Gols: mais de', 'gols', 'over');
+  linhas(vv.gols_under, 'Gols', 'Gols: menos de', 'gols', 'under');
+  linhas(vv.ht_over, 'Primeiro tempo', '1ºT: mais de', 'ht', 'over');
+  linhas(vv.ht_under, 'Primeiro tempo', '1ºT: menos de', 'ht', 'under');
+  linhas(vv.esc_over, 'Escanteios', 'Esc: mais de', 'esc', 'over');
+  linhas(vv.esc_under, 'Escanteios', 'Esc: menos de', 'esc', 'under');
+
+  // ranking: melhores/piores por lift + mais amostras (sobre TODOS os mercados)
+  const comLift = grupos.filter(g => g.lift != null && g.e.n >= 30);
+  let destHtml = '';
+  if (comLift.length >= 2) {
+    const best = comLift.reduce((a, b) => b.lift > a.lift ? b : a);
+    const worst = comLift.reduce((a, b) => b.lift < a.lift ? b : a);
+    const most = comLift.reduce((a, b) => b.e.n > a.e.n ? b : a);
+    const dCard = (label, d, cls) => `<div class="stat ${cls}"><div class="l">${label}</div><div class="v">${pct(d.e.taxa)}</div><div class="n">${esc(d.label)} · n=${d.e.n} · <b class="lift ${clsLift(d.lift)}">${fmtLift(d.lift)}</b></div><div class="bar" style="--w:${Math.round(d.e.taxa * 100)}%"></div></div>`;
+    destHtml = `<div class="stats dest-row">${dCard('Maior lift', best, 'ok')}${dCard('Mais amostras', most, '')}${dCard('Menor lift', worst, 'bad')}</div>`;
+  }
+
+  // grade completa, agrupada por categoria, ordenada por lift dentro do grupo
+  const ord = ['Resultado', 'Dupla chance', 'Gols', 'Primeiro tempo', 'Escanteios'];
+  const html = ord.map(grupo => {
+    const items = grupos.filter(g => g.grupo === grupo)
+      .sort((a, b) => (b.lift == null ? -1 : b.lift) - (a.lift == null ? -1 : a.lift));
+    if (!items.length) return '';
+    const cards = items.map(g => {
+      const lv = g.lift;
+      const warn = (g.e.n < 30) ? '<span class="warn">· amostra pequena</span>' : '';
+      const liftHtml = (lv != null && g.b != null)
+        ? `<span class="n-lift ${clsLift(lv)}" title="Taxa base (apostar sempre, sem modelo): ${pct(g.b)}">${fmtLift(lv)} vs base ${pct(g.b)}</span>` : '';
+      const bmark = (g.b != null && g.b > 0 && g.b < 1)
+        ? `<span class="bmark" style="left:${Math.round(g.b * 100)}%" title="taxa base: ${pct(g.b)}"></span>` : '';
+      const bar = `<div class="bar" style="--w:${Math.round(g.e.taxa * 100)}%">${bmark}</div>`;
+      return `<div class="stat ${clsP(g.e.taxa)}"><div class="l">${esc(g.label)}</div><div class="v">${pct(g.e.taxa)}</div><div class="n">amostra: ${g.e.n}${warn}${liftHtml}</div>${bar}</div>`;
+    }).join('');
+    return `<div class="stat-grupo">${esc(grupo)} <span class="cnt">(${items.length})</span></div>${cards}`;
   }).join('');
+  document.getElementById('stats').innerHTML = destHtml + html;
 }
 
 function mktRow(j, nome, buts) {

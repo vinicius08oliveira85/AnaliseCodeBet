@@ -167,6 +167,16 @@ h2 .n { color: var(--mut); font-weight: 500; letter-spacing: 0; text-transform: 
 
 /* ---------- Stats ---------- */
 .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.stat-grupo {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--txt); margin-top: 6px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.stat-grupo:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
+.stat-grupo .cnt { font-size: 9px; font-weight: 600; color: var(--mut); letter-spacing: 0; }
+
 .stat {
   --c: var(--accent);
   position: relative; overflow: hidden;
@@ -197,6 +207,22 @@ h2 .n { color: var(--mut); font-weight: 500; letter-spacing: 0; text-transform: 
   position: relative; height: 3px; border-radius: 2px; overflow: hidden;
   background: rgba(148, 163, 184, .13); margin-top: 7px;
 }
+/* marcador da taxa base na barra de acerto */
+.stat .bar .bmark {
+  position: absolute; top: -1px; bottom: -1px; width: 2px; border-radius: 1px;
+  background: rgba(255, 255, 255, .85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .35);
+  transform: translateX(-1px); pointer-events: none;
+}
+/* lift vs taxa base */
+.stat .n-lift { font-weight: 700; font-size: 9.5px; margin-left: 6px; }
+.stat .n-lift.ok { color: var(--ok); }
+.stat .n-lift.med { color: var(--med); }
+.stat .n-lift.bad { color: var(--bad); }
+.stats.dest-row .lift.ok { color: var(--ok); }
+.stats.dest-row .lift.med { color: var(--med); }
+.stats.dest-row .lift.bad { color: var(--bad); }
+
 .stat .bar::after {
   content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w, 0%);
   background: var(--c);

@@ -855,6 +855,47 @@ def validacao_dc(items, min_n=30):
     return res
 
 
+def bases_valid(sub):
+    """Taxas base (empíricas) de cada mercado: o que se acertaria apostando sempre,
+    sem filtro de probabilidade do modelo. Serve como referência para o 'lift'."""
+    out = {}
+    xs = sub.get("x12") or []
+    if xs:
+        n = len(xs)
+        nh = sum(1 for x in xs if x["hg"] > x["ag"])
+        nd = sum(1 for x in xs if x["hg"] == x["ag"])
+        out["x12"] = max(nh, nd, n - nh - nd) / n
+    dc = sub.get("dc") or []
+    if dc:
+        n = len(dc)
+        out["dc"] = {
+            "1x": sum(1 for x in dc if x["hg"] >= x["ag"]) / n,
+            "x2": sum(1 for x in dc if x["hg"] <= x["ag"]) / n,
+            "12": sum(1 for x in dc if x["hg"] != x["ag"]) / n,
+        }
+
+    def linhas(items, total, lines):
+        tbl = {}
+        if not items:
+            return tbl
+        n = len(items)
+        for li, l in enumerate(lines):
+            over = sum(1 for x in items if total(x) >= int(l) + 1)
+            tbl[f"{l:g}"] = {"over": over / n, "under": 1 - over / n}
+        return tbl
+
+    gols = sub.get("gols_over") or []
+    if gols:
+        out["gols"] = linhas(gols, lambda x: x["hg"] + x["ag"], GOL_LINHAS)
+    ht = [x for x in (sub.get("ht_over") or []) if x.get("hhg") is not None and x.get("hag") is not None]
+    if ht:
+        out["ht"] = linhas(ht, lambda x: x["hhg"] + x["hag"], HT_LINHAS)
+    esc = [x for x in (sub.get("esc_over") or []) if x.get("hc") is not None and x.get("ac") is not None]
+    if esc:
+        out["esc"] = linhas(esc, lambda x: x["hc"] + x["ac"], ESC_LINHAS)
+    return out
+
+
 def bloco_validacao(sub, min_n=30):
     xs = sub["x12"]
     base = {"n": len(xs), "h": sum(1 for x in xs if x["hg"] + x["ag"] > 1.5)}
@@ -870,6 +911,7 @@ def bloco_validacao(sub, min_n=30):
             "ht_under": validacao(sub["ht_under"], "ht_under", min_n),
             "esc_over": validacao(sub["esc_over"], "esc_over", min_n),
             "esc_under": validacao(sub["esc_under"], "esc_under", min_n),
+            "bases": bases_valid(sub),
             "base_over15": round(base["h"] / base["n"], 4) if base["n"] else None,
         },
     }
@@ -1307,6 +1349,7 @@ def main():
             "ht_under": validacao(valid["ht_under"], "ht_under"),
             "esc_over": validacao(valid["esc_over"], "esc_over"),
             "esc_under": validacao(valid["esc_under"], "esc_under"),
+            "bases": bases_valid(valid),
             "base_over15": round(base_tot["h"] / base_tot["n"], 4) if base_tot["n"] else None,
             **validacao_por_grupos(valid),
         },
