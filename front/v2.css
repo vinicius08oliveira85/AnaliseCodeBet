@@ -203,3 +203,6 @@ button.pick.top:hover { border-color: var(--med); }
 
 /* ---------- Apostas: chips de status sem contagens ---------- */
 #ap-filtros .cnt { display: none; }
+/* título da seção Apostas e resumos sem contadores */
+#apostas-n { display: none; }
+.ap-stat .n { display: none; }

@@ -54,7 +54,6 @@
       <button class="menu-item" data-sec="sec-combo" onclick="irPara('sec-combo')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><path d="M17 13v8M13 17h8"/></svg>
         Combinação
-        <span class="cnt" id="menu-combo"></span>
       </button>
       <button class="menu-item" data-sec="sec-auto" onclick="irPara('sec-auto')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.8L18.5 9.7l-4.6 1.9L12 16.4l-1.9-4.8-4.6-1.9 4.6-1.9L12 3z"/><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z"/></svg>
@@ -68,12 +67,10 @@
       <button class="menu-item" data-sec="sec-apostas" onclick="irPara('sec-apostas')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>
         Apostas
-        <span class="cnt" id="menu-apostas"></span>
       </button>
       <button class="menu-item" data-sec="sec-vivo" onclick="irPara('sec-vivo')">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="12" height="12" rx="3"/><path d="M18 10h2.5a1.5 1.5 0 0 1 0 3H18"/><path d="M20 14v.01"/></svg>
         Finalizados
-        <span class="cnt" id="menu-vivo"></span>
       </button>
     </div>
   </nav>
@@ -108,7 +105,7 @@
 
     <div class="grid2">
       <section class="sec" id="sec-combo">
-        <h2 data-tip="Palpites que você selecionou nos jogos; veja a chance estimada de acertar todos juntos">Sua combinação <span class="n" id="combo-n"></span></h2>
+        <h2 data-tip="Palpites que você selecionou nos jogos; veja a chance estimada de acertar todos juntos">Sua combinação</h2>
         <div class="card" id="combo"></div>
       </section>
       <section class="sec" id="sec-auto">
@@ -187,7 +184,7 @@
 <div class="combo-bar" id="combo-bar" hidden>
   <div class="cb-info">
     <span class="cb-title">Combinação</span>
-    <span class="cb-n" id="cb-n"></span>
+
     <span class="cb-p" id="cb-p"></span>
   </div>
   <div class="cb-actions">

@@ -44,6 +44,15 @@ function alternarMenu() {
   }
   const menuBtn = document.getElementById('menu-toggle');
   if (menuBtn) menuBtn.addEventListener('click', alternarMenu);
+  // remove o contador de jogos do cabeçalho (linha definida fora do alcance do editor)
+  const obsSub = new MutationObserver(() => {
+    const el = document.getElementById('sub');
+    if (el) {
+      const novo = el.textContent.replace(/\s*·\s*\d+ jogos/, '');
+      if (novo !== el.textContent) el.textContent = novo;
+    }
+  });
+  obsSub.observe(document.body, { childList: true, subtree: true, characterData: true });
   document.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
       const m = document.querySelector('.menu.aberto');
@@ -294,10 +303,6 @@ function recarregar() {
 
 function renderAoVivo() {
   const av = data.ao_vivo;
-  const vn = document.getElementById('vivo-n');
-  if (vn) vn.textContent = av && av.n ? String(av.n) : '';
-  const mv = document.getElementById('menu-vivo');
-  if (mv) mv.textContent = av && av.n ? String(av.n) : '';
   const el = document.getElementById('vivo');
   if (!av || !av.n) {
     document.getElementById('vivo-stats').innerHTML = '';
@@ -306,14 +311,14 @@ function renderAoVivo() {
       '(ex.: uma vez ao dia) para coletar os resultados dos jogos já previstos.</div>';
     return;
   }
-  document.getElementById('vivo-meta').textContent = '· ' + av.n + ' jogos · ' + av.picks_n +
-    ' palpites (P≥' + pct(av.thr) + ') · acerto ' + pct(av.taxa);
+  document.getElementById('vivo-meta').textContent = '· acerto ' + pct(av.taxa) +
+    ' (palpites com P≥' + pct(av.thr) + ')';
   const geral = `<div class="stat ${clsP(av.taxa)}"><div class="l">Taxa geral</div><div class="v">${pct(av.taxa)}</div>
-    <div class="n">${av.hit}/${av.picks_n} palpites · ${av.n} jogos</div><div class="bar" style="--w:${Math.round(av.taxa * 100)}%"></div></div>`;
+    <div class="bar" style="--w:${Math.round(av.taxa * 100)}%"></div></div>`;
   const cards = Object.keys(av.por_mercado).sort().map(k => {
     const m = av.por_mercado[k];
     return `<div class="stat ${clsP(m.taxa)}"><div class="l">${esc(nomeVivo(k))}</div>
-      <div class="v">${pct(m.taxa)}</div><div class="n">${m.hit}/${m.n} palpites</div><div class="bar" style="--w:${Math.round(m.taxa * 100)}%"></div></div>`;
+      <div class="v">${pct(m.taxa)}</div><div class="bar" style="--w:${Math.round(m.taxa * 100)}%"></div></div>`;
   });
   document.getElementById('vivo-stats').innerHTML = geral + cards.join('');
   const rows = g => {
@@ -327,7 +332,7 @@ function renderAoVivo() {
   el.innerHTML = '<div class="vligas">' + av.por_liga.map(lg => {
     const jgs = av.jogos.filter(j => j.liga === lg.liga);
     return `<details class="vliga" open><summary><b>${esc(lg.liga)}</b>
-      <span class="resumo">${lg.games} jogos · ${lg.picks_n} palpites · acerto ${pct(lg.taxa)}</span></summary>
+      <span class="resumo">acerto ${pct(lg.taxa)}</span></summary>
       <div class="vjogos">${jgs.map(rows).join('')}</div></details>`;
   }).join('') + '</div>';
 }
@@ -496,7 +501,7 @@ function renderStats() {
     const best = comLift.reduce((a, b) => b.lift > a.lift ? b : a);
     const worst = comLift.reduce((a, b) => b.lift < a.lift ? b : a);
     const most = comLift.reduce((a, b) => b.e.n > a.e.n ? b : a);
-    const dCard = (label, d, cls) => `<div class="stat ${cls}"><div class="l">${label}</div><div class="v">${pct(d.e.taxa)}</div><div class="n">${esc(d.label)} · ${d.e.n} jogos · <b class="lift ${clsLift(d.lift)}">${fmtLift(d.lift)}</b></div><div class="bar" style="--w:${Math.round(d.e.taxa * 100)}%"></div></div>`;
+    const dCard = (label, d, cls) => `<div class="stat ${cls}"><div class="l">${label}</div><div class="v">${pct(d.e.taxa)}</div><div class="n">${esc(d.label)} · <b class="lift ${clsLift(d.lift)}">${fmtLift(d.lift)}</b></div><div class="bar" style="--w:${Math.round(d.e.taxa * 100)}%"></div></div>`;
     destHtml = `<div class="stats dest-row">${dCard('Melhor que apostar sempre', best, 'ok')}${dCard('Mais jogos testados', most, '')}${dCard('Pior que apostar sempre', worst, 'bad')}</div>`;
   }
 
@@ -514,7 +519,7 @@ function renderStats() {
       const bmark = (g.b != null && g.b > 0 && g.b < 1)
         ? `<span class="bmark" style="left:${Math.round(g.b * 100)}%" title="apostar sempre: ${pct(g.b)}"></span>` : '';
       const bar = `<div class="bar" style="--w:${Math.round(g.e.taxa * 100)}%">${bmark}</div>`;
-      return `<div class="stat ${clsP(g.e.taxa)}"><div class="l">${esc(g.label)}</div><div class="v">${pct(g.e.taxa)}</div><div class="n">${g.e.n} jogos testados${warn}${liftHtml}</div>${bar}</div>`;
+      return `<div class="stat ${clsP(g.e.taxa)}"><div class="l">${esc(g.label)}</div><div class="v">${pct(g.e.taxa)}</div><div class="n">${warn}${liftHtml}</div>${bar}</div>`;
     }).join('');
     return `<div class="stat-grupo">${esc(grupo)}</div>${cards}`;
   }).join('');
@@ -577,7 +582,7 @@ function renderJogos() {
     data.jogos[a].liga.localeCompare(data.jogos[b].liga) || data.jogos[a].data.localeCompare(data.jogos[b].data));
   if (!idxs.length) {
     el.innerHTML = '<div class="vazio">Nenhum jogo encontrado com esses filtros — ajuste a busca ou os filtros.</div>';
-    document.getElementById('meta2').textContent = '· 0 jogos';
+    document.getElementById('meta2').textContent = '';
     return;
   }
   el.innerHTML = idxs.map(j => {
@@ -683,26 +688,20 @@ function renderJogos() {
       ${full}
     </div>`;
   }).join('');
-  const n = idxs.length;
-  let nota = dataFiltro ? 'mostrando ' + n + ' de ' + data.jogos.length + ' jogos' : data.jogos.length + ' jogos';
-  if (liga) nota += ' · campeonato: ' + liga;
-  if (buscaLiga) nota += ' · campeonato: ' + buscaLiga;
-  if (buscaTime) nota += ' · busca: "' + buscaTime + '"';
-  document.getElementById('meta2').textContent = '· ' + nota + ' · clique para selecionar (✦ = maior chance do mercado)';
+  const metas = [];
+  if (liga) metas.push('campeonato: ' + liga);
+  if (buscaLiga) metas.push('campeonato: ' + buscaLiga);
+  if (buscaTime) metas.push('busca: "' + buscaTime + '"');
+  document.getElementById('meta2').textContent = '·' + (metas.length ? ' ' + metas.join(' · ') : '') +
+    ' clique para selecionar (✦ = maior chance do mercado)';
 }
 
 function renderCombo() {
   const el = document.getElementById('combo');
-  const nEl = document.getElementById('combo-n');
-  const mn = document.getElementById('menu-combo');
   if (!picks.length) {
-    nEl.textContent = '';
-    if (mn) mn.textContent = '';
     el.innerHTML = '<div class="vazio">Clique em um palpite (✦ = melhor P) nos jogos acima para montar a combinação.</div>';
     return;
   }
-  nEl.textContent = '· ' + picks.length + (picks.length > 1 ? ' palpites' : ' palpite');
-  if (mn) mn.textContent = String(picks.length);
   let pTot = 1, eTot = 1;
   const items = picks.map((p, i) => {
     pTot *= p.p; eTot *= p.taxa;
@@ -739,7 +738,6 @@ function renderComboBar() {
   if (!n) { bar.hidden = true; return; }
   const pTot = picks.reduce((a, p) => a * p.p, 1);
   const eTot = picks.reduce((a, p) => a * p.taxa, 1);
-  document.getElementById('cb-n').textContent = n + (n > 1 ? ' palpites' : ' palpite');
   const pEl = document.getElementById('cb-p');
   pEl.className = 'cb-p ' + clsP(eTot);
   pEl.textContent = 'P ' + pct(pTot) + ' · exp. ' + pct(eTot);
