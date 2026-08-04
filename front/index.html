@@ -139,14 +139,27 @@
   <section class="sec" id="sec-apostas" hidden>
     <h2>Apostas <span class="n" id="apostas-n"></span>
       <button class="btn mini" onclick="exportarApostas()" title="Baixar apostas em CSV">Exportar CSV</button>
+      <button class="btn mini" onclick="limparApostas()" title="Apagar todo o histórico">Limpar histórico</button>
     </h2>
     <div class="card ap-resumo">
-      <label class="banca-label">Banca (R$)
-        <input id="ap-banca" type="number" step="10" min="10" inputmode="decimal">
-      </label>
-      <div id="ap-resumo-nums"></div>
+      <div class="banca-box">
+        <label class="banca-label">Banca (R$)
+          <input id="ap-banca" type="number" step="10" min="0" inputmode="decimal">
+        </label>
+        <div class="banca-btns">
+          <button type="button" onclick="ajustarBanca(50)" title="Adicionar R$ 50 à banca">+50</button>
+          <button type="button" onclick="ajustarBanca(100)" title="Adicionar R$ 100 à banca">+100</button>
+          <button type="button" onclick="ajustarBanca(-50)" title="Retirar R$ 50 da banca">−50</button>
+        </div>
+      </div>
+      <div class="ap-resumo-nums" id="ap-resumo-nums"></div>
     </div>
+    <div class="filtro" id="ap-filtros" aria-label="Filtrar apostas"></div>
     <div id="apostas"></div>
+    <div class="sec" id="ap-stats-wrap" hidden>
+      <h3>Seu desempenho por mercado</h3>
+      <div class="ap-stats" id="ap-stats"></div>
+    </div>
   </section>
 </main>
 
