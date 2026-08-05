@@ -1,5 +1,5 @@
 {
- "gerado_em": "2026-08-05T13:42:49+00:00",
+ "gerado_em": "2026-08-05T14:18:59+00:00",
  "validacao": {
   "x12": {
    "0.6": {
@@ -5657,16 +5657,549 @@
  },
  "w_sot": 0.5,
  "ao_vivo": {
-  "n": 0,
-  "picks_n": 0,
-  "hit": 0,
-  "taxa": null,
+  "n": 7,
+  "picks_n": 39,
+  "hit": 30,
+  "taxa": 0.7692,
   "thr": 0.7,
-  "por_mercado": {},
-  "por_liga": [],
-  "jogos": []
+  "por_mercado": {
+   "gols_over_1.5": {
+    "n": 5,
+    "hit": 2,
+    "taxa": 0.4
+   },
+   "gols_under_4.5": {
+    "n": 7,
+    "hit": 7,
+    "taxa": 1.0
+   },
+   "dc_x2": {
+    "n": 2,
+    "hit": 1,
+    "taxa": 0.5
+   },
+   "dc_1x": {
+    "n": 3,
+    "hit": 2,
+    "taxa": 0.6667
+   },
+   "gols_under_3.5": {
+    "n": 3,
+    "hit": 3,
+    "taxa": 1.0
+   },
+   "ht_under_2.5": {
+    "n": 5,
+    "hit": 5,
+    "taxa": 1.0
+   },
+   "esc_over_7.5": {
+    "n": 5,
+    "hit": 3,
+    "taxa": 0.6
+   },
+   "esc_under_12.5": {
+    "n": 5,
+    "hit": 4,
+    "taxa": 0.8
+   },
+   "dc_12": {
+    "n": 3,
+    "hit": 3,
+    "taxa": 1.0
+   },
+   "ht_over_0.5": {
+    "n": 1,
+    "hit": 0,
+    "taxa": 0.0
+   }
+  },
+  "por_liga": [
+   {
+    "liga": "Copa do Brasil",
+    "games": 7,
+    "picks_n": 39,
+    "hit": 30,
+    "taxa": 0.7692,
+    "por_mercado": {
+     "gols_over_1.5": {
+      "n": 5,
+      "hit": 2,
+      "taxa": 0.4
+     },
+     "gols_under_4.5": {
+      "n": 7,
+      "hit": 7,
+      "taxa": 1.0
+     },
+     "dc_x2": {
+      "n": 2,
+      "hit": 1,
+      "taxa": 0.5
+     },
+     "dc_1x": {
+      "n": 3,
+      "hit": 2,
+      "taxa": 0.6667
+     },
+     "gols_under_3.5": {
+      "n": 3,
+      "hit": 3,
+      "taxa": 1.0
+     },
+     "ht_under_2.5": {
+      "n": 5,
+      "hit": 5,
+      "taxa": 1.0
+     },
+     "esc_over_7.5": {
+      "n": 5,
+      "hit": 3,
+      "taxa": 0.6
+     },
+     "esc_under_12.5": {
+      "n": 5,
+      "hit": 4,
+      "taxa": 0.8
+     },
+     "dc_12": {
+      "n": 3,
+      "hit": 3,
+      "taxa": 1.0
+     },
+     "ht_over_0.5": {
+      "n": 1,
+      "hit": 0,
+      "taxa": 0.0
+     }
+    }
+   }
+  ],
+  "jogos": [
+   {
+    "liga": "Copa do Brasil",
+    "casa": "Palmeiras",
+    "fora": "Fortaleza",
+    "data": "2026-08-02T19:00Z",
+    "hora_br": "02/08 16:00",
+    "lam": 2.84,
+    "lam_esc": 10.46,
+    "hg": 3,
+    "ag": 0,
+    "picks": [
+     {
+      "tipo": "gols_over",
+      "linha": 1.5,
+      "p": 0.7754,
+      "nome": "Mais de 1.5",
+      "ok": true
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 4.5,
+      "p": 0.8416,
+      "nome": "Menos de 4.5",
+      "ok": true
+     }
+    ]
+   },
+   {
+    "liga": "Copa do Brasil",
+    "casa": "Mirassol",
+    "fora": "Grêmio",
+    "data": "2026-08-02T21:00Z",
+    "hora_br": "02/08 18:00",
+    "lam": 3.03,
+    "lam_esc": 10.52,
+    "hg": 1,
+    "ag": 1,
+    "picks": [
+     {
+      "tipo": "dc",
+      "linha": "x2",
+      "p": 0.735037229681107,
+      "nome": "X2",
+      "ok": true
+     },
+     {
+      "tipo": "gols_over",
+      "linha": 1.5,
+      "p": 0.8051,
+      "nome": "Mais de 1.5",
+      "ok": true
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 4.5,
+      "p": 0.8104,
+      "nome": "Menos de 4.5",
+      "ok": true
+     }
+    ]
+   },
+   {
+    "liga": "Copa do Brasil",
+    "casa": "Chapecoense",
+    "fora": "Cruzeiro",
+    "data": "2026-08-02T21:30Z",
+    "hora_br": "02/08 18:30",
+    "lam": 2.7,
+    "lam_esc": 9.98,
+    "hg": 0,
+    "ag": 0,
+    "picks": [
+     {
+      "tipo": "dc",
+      "linha": "1x",
+      "p": 0.7349823641694703,
+      "nome": "1X",
+      "ok": true
+     },
+     {
+      "tipo": "gols_over",
+      "linha": 1.5,
+      "p": 0.7518,
+      "nome": "Mais de 1.5",
+      "ok": false
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 3.5,
+      "p": 0.7135,
+      "nome": "Menos de 3.5",
+      "ok": true
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 4.5,
+      "p": 0.8625,
+      "nome": "Menos de 4.5",
+      "ok": true
+     },
+     {
+      "tipo": "ht_under",
+      "linha": 2.5,
+      "p": 0.882,
+      "nome": "Menos de 2.5",
+      "ok": true
+     },
+     {
+      "tipo": "esc_over",
+      "linha": 7.5,
+      "p": 0.7869,
+      "nome": "Mais de 7.5",
+      "ok": true
+     },
+     {
+      "tipo": "esc_under",
+      "linha": 12.5,
+      "p": 0.7835,
+      "nome": "Menos de 12.5",
+      "ok": false
+     }
+    ]
+   },
+   {
+    "liga": "Copa do Brasil",
+    "casa": "Internacional",
+    "fora": "Corinthians",
+    "data": "2026-08-02T22:30Z",
+    "hora_br": "02/08 19:30",
+    "lam": 2.31,
+    "lam_esc": 10.49,
+    "hg": 2,
+    "ag": 0,
+    "picks": [
+     {
+      "tipo": "dc",
+      "linha": "x2",
+      "p": 0.7114446113247093,
+      "nome": "X2",
+      "ok": false
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 3.5,
+      "p": 0.7968,
+      "nome": "Menos de 3.5",
+      "ok": true
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 4.5,
+      "p": 0.9148,
+      "nome": "Menos de 4.5",
+      "ok": true
+     },
+     {
+      "tipo": "ht_under",
+      "linha": 2.5,
+      "p": 0.8933,
+      "nome": "Menos de 2.5",
+      "ok": true
+     },
+     {
+      "tipo": "esc_over",
+      "linha": 7.5,
+      "p": 0.7977,
+      "nome": "Mais de 7.5",
+      "ok": true
+     },
+     {
+      "tipo": "esc_under",
+      "linha": 12.5,
+      "p": 0.7708,
+      "nome": "Menos de 12.5",
+      "ok": true
+     }
+    ]
+   },
+   {
+    "liga": "Copa do Brasil",
+    "casa": "Athletico-PR",
+    "fora": "Vitória",
+    "data": "2026-08-04T00:00Z",
+    "hora_br": "03/08 21:00",
+    "lam": 2.4,
+    "lam_esc": 10.98,
+    "hg": 2,
+    "ag": 0,
+    "picks": [
+     {
+      "tipo": "dc",
+      "linha": "1x",
+      "p": 0.7988,
+      "nome": "1X",
+      "ok": true
+     },
+     {
+      "tipo": "dc",
+      "linha": "12",
+      "p": 0.7457,
+      "nome": "12",
+      "ok": true
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 3.5,
+      "p": 0.7781,
+      "nome": "Menos de 3.5",
+      "ok": true
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 4.5,
+      "p": 0.9038,
+      "nome": "Menos de 4.5",
+      "ok": true
+     },
+     {
+      "tipo": "ht_under",
+      "linha": 2.5,
+      "p": 0.9421,
+      "nome": "Menos de 2.5",
+      "ok": true
+     },
+     {
+      "tipo": "esc_over",
+      "linha": 7.5,
+      "p": 0.8063,
+      "nome": "Mais de 7.5",
+      "ok": false
+     },
+     {
+      "tipo": "esc_under",
+      "linha": 12.5,
+      "p": 0.7578,
+      "nome": "Menos de 12.5",
+      "ok": true
+     }
+    ]
+   },
+   {
+    "liga": "Copa do Brasil",
+    "casa": "Juventude",
+    "fora": "Atlético-MG",
+    "data": "2026-08-04T22:30Z",
+    "hora_br": "04/08 19:30",
+    "lam": 3.37,
+    "lam_esc": 12.8,
+    "hg": 0,
+    "ag": 1,
+    "picks": [
+     {
+      "tipo": "dc",
+      "linha": "1x",
+      "p": 0.7756000000000001,
+      "nome": "1X",
+      "ok": false
+     },
+     {
+      "tipo": "dc",
+      "linha": "12",
+      "p": 0.7918000000000001,
+      "nome": "12",
+      "ok": true
+     },
+     {
+      "tipo": "gols_over",
+      "linha": 1.5,
+      "p": 0.8496,
+      "nome": "Mais de 1.5",
+      "ok": false
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 4.5,
+      "p": 0.7499,
+      "nome": "Menos de 4.5",
+      "ok": true
+     },
+     {
+      "tipo": "ht_under",
+      "linha": 2.5,
+      "p": 0.9805,
+      "nome": "Menos de 2.5",
+      "ok": true
+     },
+     {
+      "tipo": "esc_over",
+      "linha": 7.5,
+      "p": 0.8275,
+      "nome": "Mais de 7.5",
+      "ok": false
+     },
+     {
+      "tipo": "esc_under",
+      "linha": 12.5,
+      "p": 0.7062,
+      "nome": "Menos de 12.5",
+      "ok": true
+     }
+    ]
+   },
+   {
+    "liga": "Copa do Brasil",
+    "casa": "Remo",
+    "fora": "Santos",
+    "data": "2026-08-05T00:30Z",
+    "hora_br": "04/08 21:30",
+    "lam": 3.2,
+    "lam_esc": 10.31,
+    "hg": 0,
+    "ag": 1,
+    "picks": [
+     {
+      "tipo": "dc",
+      "linha": "12",
+      "p": 0.7701,
+      "nome": "12",
+      "ok": true
+     },
+     {
+      "tipo": "gols_over",
+      "linha": 1.5,
+      "p": 0.8291,
+      "nome": "Mais de 1.5",
+      "ok": false
+     },
+     {
+      "tipo": "gols_under",
+      "linha": 4.5,
+      "p": 0.7802,
+      "nome": "Menos de 4.5",
+      "ok": true
+     },
+     {
+      "tipo": "ht_over",
+      "linha": 0.5,
+      "p": 0.8336,
+      "nome": "Mais de 0.5",
+      "ok": false
+     },
+     {
+      "tipo": "ht_under",
+      "linha": 2.5,
+      "p": 0.7324,
+      "nome": "Menos de 2.5",
+      "ok": true
+     },
+     {
+      "tipo": "esc_over",
+      "linha": 7.5,
+      "p": 0.7942,
+      "nome": "Mais de 7.5",
+      "ok": true
+     },
+     {
+      "tipo": "esc_under",
+      "linha": 12.5,
+      "p": 0.7753,
+      "nome": "Menos de 12.5",
+      "ok": true
+     }
+    ]
+   }
+  ]
  },
- "resultados": {},
+ "resultados": {
+  "401873913": {
+   "hg": 3,
+   "ag": 0,
+   "hhg": 0,
+   "hag": 0,
+   "hc": null,
+   "ac": null
+  },
+  "401873939": {
+   "hg": 1,
+   "ag": 1,
+   "hhg": 1,
+   "hag": 0,
+   "hc": null,
+   "ac": null
+  },
+  "401873955": {
+   "hg": 0,
+   "ag": 0,
+   "hhg": 0,
+   "hag": 0,
+   "hc": 6,
+   "ac": 7
+  },
+  "401873957": {
+   "hg": 2,
+   "ag": 0,
+   "hhg": 0,
+   "hag": 0,
+   "hc": 4,
+   "ac": 5
+  },
+  "401873938": {
+   "hg": 2,
+   "ag": 0,
+   "hhg": 1,
+   "hag": 0,
+   "hc": 5,
+   "ac": 0
+  },
+  "401874097": {
+   "hg": 0,
+   "ag": 1,
+   "hhg": 0,
+   "hag": 0,
+   "hc": 3,
+   "ac": 4
+  },
+  "401874098": {
+   "hg": 0,
+   "ag": 1,
+   "hhg": 0,
+   "hag": 0,
+   "hc": 3,
+   "ac": 8
+  }
+ },
  "linhas_gols": [
   0.5,
   1.5,
