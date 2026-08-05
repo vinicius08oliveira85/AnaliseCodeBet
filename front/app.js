@@ -663,8 +663,15 @@ function renderJogos() {
     gols.forEach(gp => candBest.push({ nome: curto(gp.tipo, gp.li), p: gp.p, taxa: taxaPick(gp.tipo, gp.li, gp.p) }));
     if (ht) ht.forEach(gp => candBest.push({ nome: curto(gp.tipo, gp.li), p: gp.p, taxa: taxaPick(gp.tipo, gp.li, gp.p) }));
     if (escRec) escRec.forEach(gp => candBest.push({ nome: curto(gp.tipo, gp.li), p: gp.p, taxa: taxaPick(gp.tipo, gp.li, gp.p) }));
-    const mel = candBest.reduce((a, b) => b.taxa > a.taxa ? b : a);
-    const topChip = `<span class="badge top-bet" title="Melhor palpite (maior expectativa de acerto pela validação)">✦ ${esc(mel.nome)} ${pct(mel.taxa)}</span>`;
+    // chip ✦: mesma lógica das sugestões (melhor por categoria, com pisos e sem linhas quase certas)
+    const legsChip = melhoresPorCategoria(j);
+    const mel = legsChip.length ? legsChip[0] : candBest.reduce((a, b) => b.taxa > a.taxa ? b : a);
+    const chipNome = mel.tipo
+      ? (mel.tipo === 'x12' ? ['Casa', 'Empate', 'Fora'][mel.li]
+        : mel.tipo === 'dc' ? 'Dupla ' + String(mel.li).toUpperCase()
+        : curto(mel.tipo, mel.li))
+      : mel.nome;
+    const topChip = `<span class="badge top-bet" title="Melhor palpite (maior expectativa de acerto pela validação)">✦ ${esc(chipNome)} ${pct(mel.taxa)}</span>`;
     const barra = `<div class="barra-x12" title="Distribuição de probabilidades 1X2">` +
       `<span class="seg h" style="width:${Math.max(0, Math.round(px[0] * 100))}%"><b>${pct(px[0])}</b></span>` +
       `<span class="seg d" style="width:${Math.max(0, Math.round(px[1] * 100))}%"><b>${pct(px[1])}</b></span>` +
@@ -787,51 +794,86 @@ function limparPicks() {
   toast('Combinação limpa');
 }
 
-function autoCombos() {
-  const cands = data.jogos.map((g, i) => {
-    if (!g.prob) return null;
-    const pr = g.prob;
-    const list = [];
-    const px = [pv(i, 'x12', 0), pv(i, 'x12', 1), pv(i, 'x12', 2)];
-    const mx = Math.max(...px);
-    list.push({ tipo: 'x12', li: px.indexOf(mx), p: mx, nome: ['Casa', 'Empate', 'Fora'][px.indexOf(mx)] });
-    list.push({ tipo: 'dc', li: '1x', p: px[0] + px[1], nome: 'Dupla chance 1X' });
-    list.push({ tipo: 'dc', li: '12', p: px[0] + px[2], nome: 'Dupla chance 12' });
-    list.push({ tipo: 'dc', li: 'x2', p: px[1] + px[2], nome: 'Dupla chance X2' });
-    for (const li of [1, 3, 4, 5]) {
-      list.push({ tipo: 'gols_over', li: LINHAS_GOLS[li], p: pv(i, 'gols_over', LINHAS_GOLS[li]) });
-      list.push({ tipo: 'gols_under', li: LINHAS_GOLS[li], p: pv(i, 'gols_under', LINHAS_GOLS[li]) });
-    }
-    if ((pr.ht_over || []).length) {
-      for (const li of [0, 2]) {
-        list.push({ tipo: 'ht_over', li: LINHAS_HT[li], p: pv(i, 'ht_over', LINHAS_HT[li]) });
-        list.push({ tipo: 'ht_under', li: LINHAS_HT[li], p: pv(i, 'ht_under', LINHAS_HT[li]) });
-      }
-    }
-    if ((pr.esc_over || []).length) {
-      for (const li of [0, 4, 5]) {
-        list.push({ tipo: 'esc_over', li: LINHAS_ESC[li], p: pv(i, 'esc_over', LINHAS_ESC[li]) });
-        list.push({ tipo: 'esc_under', li: LINHAS_ESC[li], p: pv(i, 'esc_under', LINHAS_ESC[li]) });
-      }
-    }
-    for (const c of list) {
-      if (typeof c.p !== 'number' || isNaN(c.p)) continue;
-      c.taxa = taxaPick(c.tipo, c.li, c.p);
-      c.nome = nomeMercado(c.tipo, c.li);
-    }
-    const bons = list.filter(c => c.taxa >= 0.75 && c.p >= 0.85);
-    bons.sort((a, b) => b.p - a.p);
-    return bons.length ? { i, g, best: bons[0] } : null;
-  }).filter(Boolean);
+function melhoresPorCategoria(j) {
+  // Mesma lógica das sugestões automáticas: pisos de probabilidade por categoria,
+  // sem linhas quase certas (P>96%) e o melhor palpite de cada categoria
+  // (resultado/dupla, gols, 1ºT, escanteios) para garantir diversidade.
+  const g = data.jogos[j];
+  if (!g || !g.prob) return [];
+  const pr = g.prob;
+  const px = [pv(j, 'x12', 0), pv(j, 'x12', 1), pv(j, 'x12', 2)];
+  const list = [];
+  [0, 1, 2].forEach(li => list.push({ tipo: 'x12', li, p: px[li] }));
+  [['1x', 0, 1], ['x2', 1, 2], ['12', 0, 2]].forEach(([li, a, b]) =>
+    list.push({ tipo: 'dc', li, p: px[a] + px[b] }));
+  LINHAS_GOLS.forEach(li => {
+    list.push({ tipo: 'gols_over', li, p: pv(j, 'gols_over', li) });
+    list.push({ tipo: 'gols_under', li, p: pv(j, 'gols_under', li) });
+  });
+  if ((pr.ht_over || []).length) LINHAS_HT.forEach(li => {
+    list.push({ tipo: 'ht_over', li, p: pv(j, 'ht_over', li) });
+    list.push({ tipo: 'ht_under', li, p: pv(j, 'ht_under', li) });
+  });
+  if ((pr.esc_over || []).length) LINHAS_ESC.forEach(li => {
+    list.push({ tipo: 'esc_over', li, p: pv(j, 'esc_over', li) });
+    list.push({ tipo: 'esc_under', li, p: pv(j, 'esc_under', li) });
+  });
+  const FLOOR = { x12: 0.72, dc: 0.72, gols: 0.85, ht: 0.8, esc: 0.75 };
+  const PCAP = 0.96;
+  const catOf = t => (t === 'x12' || t === 'dc') ? 'res' : t.split('_')[0];
+  const bons = [];
+  for (const c of list) {
+    if (typeof c.p !== 'number' || isNaN(c.p)) continue;
+    c.cat = catOf(c.tipo);
+    if (c.p < FLOOR[c.cat] || c.p > PCAP) continue;
+    c.taxa = taxaPick(c.tipo, c.li, c.p);
+    if (c.taxa < 0.75) continue;
+    c.nome = nomeMercado(c.tipo, c.li);
+    bons.push(c);
+  }
+  if (!bons.length) return [];
+  const melhorCat = {};
+  for (const c of bons) {
+    const prev = melhorCat[c.cat];
+    if (!prev || c.taxa > prev.taxa || (c.taxa === prev.taxa && c.p > prev.p)) melhorCat[c.cat] = c;
+  }
+  return Object.keys(melhorCat).map(k => {
+    const c = melhorCat[k];
+    return { i: j, g: data.jogos[j], tipo: c.tipo, li: c.li, p: c.p, taxa: c.taxa, nome: c.nome, cat: c.cat };
+  }).sort((a, b) => b.taxa - a.taxa || b.p - a.p);
+}
 
+function autoCombos() {
+  // Sugestões usam a mesma seleção por categoria (melhoresPorCategoria) com
+  // diversidade e ranking por EV.
+  const perGame = [];
+  data.jogos.forEach((g, i) => {
+    const legs = melhoresPorCategoria(i);
+    if (legs.length) perGame.push({ i, g, legs });
+  });
+
+  // pool com os jogos de melhor perna (limite de tamanho p/ performance)
+  const pool = perGame.filter(pg => pg.legs[0].taxa >= 0.80).slice(0, 60);
   const combos = [];
-  for (let a = 0; a < cands.length; a++) {
-    for (let b = a + 1; b < cands.length; b++) {
-      const c = { ms: [cands[a], cands[b]], eTot: cands[a].best.taxa * cands[b].best.taxa, pTot: cands[a].best.p * cands[b].best.p };
-      if (c.eTot >= 0.75) combos.push(c);
-      for (let d = b + 1; d < cands.length; d++) {
-        const c3 = { ms: [cands[a], cands[b], cands[d]], eTot: c.eTot * cands[d].best.taxa, pTot: c.pTot * cands[d].best.p };
-        if (c3.eTot >= 0.75) combos.push(c3);
+  const n = pool.length;
+  for (let a = 0; a < n; a++) {
+    const A = pool[a], As = A.legs.slice(0, 3);
+    for (let b = a + 1; b < n; b++) {
+      const B = pool[b], Bs = B.legs.slice(0, 3);
+      for (const la of As) for (const lb of Bs) {
+        if (la.cat === lb.cat) continue;
+        const eTot = la.taxa * lb.taxa;
+        if (eTot < 0.75) continue;
+        combos.push({ ms: [la, lb], eTot, pTot: la.p * lb.p });
+      }
+      for (let d = b + 1; d < n; d++) {
+        const C = pool[d], Cs = C.legs.slice(0, 2);
+        for (const la of As.slice(0, 2)) for (const lb of Bs.slice(0, 2)) for (const lc of Cs) {
+          if (la.cat === lb.cat && lb.cat === lc.cat) continue;
+          const eTot = la.taxa * lb.taxa * lc.taxa;
+          if (eTot < 0.75) continue;
+          combos.push({ ms: [la, lb, lc], eTot, pTot: la.p * lb.p * lc.p });
+        }
       }
     }
   }
@@ -839,14 +881,26 @@ function autoCombos() {
     c.odd = 1 / c.eTot;
     c.ev = c.pTot * c.odd - 1;
   }
-  combos.sort((x, y) => y.ev - x.ev);
+  combos.sort((x, y) => y.ev - x.ev || y.eTot - x.eTot);
+
+  // 6 melhores com diversidade: mesma perna no máx. 2x; mesmo mercado no máx. 3x
   const uniq = [];
   const seen = new Set();
+  const legUse = {};
+  const mktUse = {};
   for (const c of combos) {
     const key = c.ms.map(m => m.i).sort().join('+');
     if (seen.has(key)) continue;
+    const legKey = m => m.i + '|' + m.tipo + '|' + m.li;
+    const mktKey = m => m.tipo + '_' + m.li;
+    if (c.ms.some(m => (legUse[legKey(m)] || 0) >= 2)) continue;
+    if (c.ms.some(m => (mktUse[mktKey(m)] || 0) >= 3)) continue;
     seen.add(key);
     uniq.push(c);
+    c.ms.forEach(m => {
+      legUse[legKey(m)] = (legUse[legKey(m)] || 0) + 1;
+      mktUse[mktKey(m)] = (mktUse[mktKey(m)] || 0) + 1;
+    });
     if (uniq.length >= 6) break;
   }
   const el = document.getElementById('auto');
@@ -857,8 +911,8 @@ function autoCombos() {
   el.innerHTML = '<ul class="auto">' + uniq.map((c, k) => {
     const legs = c.ms.map(m =>
       `<div class="leg"><span class="leg-teams">${crest(m.g.casa, 16)}<b>${esc(m.g.casa)}</b> <span class="vs">x</span> <b>${esc(m.g.fora)}</b></span>
-       <span class="leg-mkt">${esc(m.best.nome)}</span>
-       <span class="leg-p p ${clsP(m.best.taxa)}">${pct(m.best.taxa)}</span></div>`).join('');
+       <span class="leg-mkt">${esc(m.nome)}</span>
+       <span class="leg-p p ${clsP(m.taxa)}">${pct(m.taxa)}</span></div>`).join('');
     return `<li><div class="auto-head">
       <b class="auto-k">Combo ${k + 1}</b>
       <span class="auto-tags">
@@ -875,7 +929,7 @@ function autoCombos() {
 
 function aplicarAuto(k) {
   const c = window._autos[k];
-  for (const m of c.ms) addPick(m.i, m.best.tipo, m.best.li, m.best.p, m.best.nome);
+  for (const m of c.ms) addPick(m.i, m.tipo, m.li, m.p, m.nome);
   toast('Combinação automática aplicada', 'ok');
 }
 
