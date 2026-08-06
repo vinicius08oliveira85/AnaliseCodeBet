@@ -318,7 +318,11 @@ function renderAoVivo() {
   if (!av || !av.n) {
     document.getElementById('vivo-stats').innerHTML = '';
     document.getElementById('vivo-meta').textContent = '';
-    el.innerHTML = '<div class="vazio">Nenhum jogo finalizado ainda. Os resultados são atualizados quando o modelo processa os jogos previstos.</div>';
+    el.innerHTML = '<div class="vivo-empty">' +
+      '<div class="vazio">Nenhum jogo finalizado com resultados coletados ainda.</div>' +
+      '<p class="vivo-hint">Os resultados são atualizados automaticamente quando o pipeline consegue acessar o provedor de dados (ESPN). Se a seção estiver vazia com jogos previstos, pode ser uma indisponibilidade temporária do provedor.</p>' +
+      '<button class="btn refresh" onclick="recarregar()" title="Recarregar dados">↻ tentar atualizar</button>' +
+      '</div>';
     return;
   }
   document.getElementById('vivo-meta').textContent = '· acerto ' + pct(av.taxa) +
