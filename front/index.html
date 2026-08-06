@@ -22,6 +22,7 @@
 </script>
 </head>
 <body>
+<div class="loader-bar" aria-hidden="true"></div>
 <header class="site-head">
   <div class="topbar">
     <div class="topbar-inner">
@@ -81,6 +82,11 @@
     <div class="hero-copy">
       <h1 class="hero-title">Previsões para apostas <span>com base estatística</span></h1>
       <p class="hero-sub">Modelo <b>Poisson + Dixon-Coles</b> com peso de chutes no alvo, escanteios e taxas testadas em jogos passados.</p>
+      <div class="hero-metrics">
+        <div class="hm"><span class="hm-l">Jogos</span><span class="hm-v" id="hm-jogos">—</span></div>
+        <div class="hm"><span class="hm-l">Ligas</span><span class="hm-v" id="hm-ligas">—</span></div>
+        <div class="hm"><span class="hm-l">Peso SOT</span><span class="hm-v" id="hm-sot">—</span><span class="hm-i">chutes no alvo</span></div>
+      </div>
     </div>
   </section>
 

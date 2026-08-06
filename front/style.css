@@ -142,6 +142,32 @@ h2 .n { color: var(--mut); font-weight: 500; letter-spacing: 0; text-transform: 
 }
 .hero-sub { color: var(--mut); font-size: 12.5px; max-width: 640px; margin-top: 6px; }
 .hero-sub b { color: var(--txt); }
+.hero-metrics {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px;
+}
+.hm {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;
+  min-width: 80px; flex: 1 1 100px;
+  transition: border-color .18s, transform .18s;
+}
+.hm:hover { border-color: var(--border2); transform: translateY(-2px); }
+.hm .hm-l { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
+.hm .hm-v { font-size: 18px; font-weight: 800; letter-spacing: -.02em; color: var(--txt); font-variant-numeric: tabular-nums; }
+.hm .hm-i { font-size: 9px; color: var(--mut); font-weight: 500; }
+.hero-metrics {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px;
+}
+.hm {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 10px 14px; display: flex; flex-direction: column; gap: 2px;
+  min-width: 80px; flex: 1 1 100px;
+  transition: border-color .18s, transform .18s;
+}
+.hm:hover { border-color: var(--border2); transform: translateY(-2px); }
+.hm .hm-l { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
+.hm .hm-v { font-size: 18px; font-weight: 800; letter-spacing: -.02em; color: var(--txt); font-variant-numeric: tabular-nums; }
+.hm .hm-i { font-size: 9px; color: var(--mut); font-weight: 500; }
 /* ---------- Cards ---------- */
 .card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
@@ -696,7 +722,86 @@ body.has-combo .toast-wrap { bottom: 92px; }
 .meter-lbl b { font-variant-numeric: tabular-nums; }
 
 /* ---------- Botão mini ---------- */
-.btn.mini { padding: 3px 11px; font-size: 10.5px; border-radius: 999px; }
+.btn.mini { padding: 4px 12px; font-size: 11px; border-radius: 999px; }
+
+/* ---------- Indicador de seção ativa no menu (scroll spy) ---------- */
+.menu-item.act {
+  color: var(--txt); font-weight: 700;
+  background: linear-gradient(135deg, rgba(56, 189, 248, .18), rgba(99, 102, 241, .2));
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, .28), 0 0 0 1px rgba(56, 189, 248, .12);
+}
+
+/* ---------- Transições de seção ---------- */
+.sec {
+  transition: opacity .3s ease, transform .3s ease;
+}
+.sec[hidden] {
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+}
+
+/* ---------- Badge de "ao vivo" pulsante ---------- */
+.badge.live {
+  color: var(--ok); background: rgba(52, 211, 153, .12);
+  border: 1px solid rgba(52, 211, 153, .35);
+  animation: livePulse 2s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, .3); }
+  50% { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+}
+
+/* ---------- Card de aposta com destaque de ganho ---------- */
+.ap.ganhou {
+  border-color: rgba(52, 211, 153, .35);
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, .08), 0 0 20px -10px rgba(52, 211, 153, .25);
+}
+.ap.perdeu {
+  border-color: rgba(251, 113, 133, .25);
+}
+
+/* ---------- Barra de progresso de carregamento ---------- */
+.loader-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transform: scaleX(0); transform-origin: left;
+  animation: loaderIn 1.2s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes loaderIn {
+  0% { transform: scaleX(0); }
+  30% { transform: scaleX(.4); }
+  70% { transform: scaleX(.8); }
+  100% { transform: scaleX(1); }
+}
+
+/* ---------- Scrollbar customizada por seção ---------- */
+.jogos::-webkit-scrollbar { width: 8px; height: 8px; }
+.jogos::-webkit-scrollbar-track { background: transparent; }
+.jogos::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+.jogos::-webkit-scrollbar-thumb:hover { background: var(--border2); background-clip: padding-box; }
+
+/* ---------- Responsividade melhorada ---------- */
+@media (max-width: 640px) {
+  .hero { padding: 16px; }
+  .hero-title { font-size: 17px; }
+  .jogos { grid-template-columns: 1fr; }
+  .combo-bar { flex-direction: column; gap: 10px; padding: 12px; }
+  .cb-actions { width: 100%; justify-content: stretch; }
+  .cb-actions .btn { flex: 1; }
+}
+
+/* ---------- Tema claro: ajustes finos ---------- */
+:root[data-theme="light"] .mc:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, .8),
+    0 16px 36px -20px rgba(15, 23, 42, .25),
+    0 0 0 1px var(--border2);
+}
+:root[data-theme="light"] .skeleton {
+  background: linear-gradient(100deg, rgba(15, 23, 42, .04) 40%, rgba(56, 130, 246, .04) 50%, rgba(15, 23, 42, .04) 60%);
+}
+:root[data-theme="light"] .vazio {
+  background: rgba(255, 255, 255, .7); border-color: rgba(56, 130, 246, .2);
+}
 
 /* ---------- Rodapé / atalhos ---------- */
 .foot-keys { display: block; margin-top: 6px; color: var(--mut); font-weight: 500; }
@@ -728,14 +833,155 @@ body.has-combo .toast-wrap { bottom: 92px; }
 
 /* ---------- Entrance ---------- */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.stat, .mc { animation: fadeUp .32s ease both; }
-.jogos .mc:nth-child(2) { animation-delay: .04s; }
-.jogos .mc:nth-child(3) { animation-delay: .08s; }
-.jogos .mc:nth-child(4) { animation-delay: .12s; }
-.jogos .mc:nth-child(n+5) { animation-delay: .16s; }
+.stat, .mc { animation: fadeUp .4s cubic-bezier(.22, 1, .36, 1) both; }
+.jogos .mc:nth-child(2) { animation-delay: .05s; }
+.jogos .mc:nth-child(3) { animation-delay: .10s; }
+.jogos .mc:nth-child(4) { animation-delay: .15s; }
+.jogos .mc:nth-child(n+5) { animation-delay: .20s; }
+
+/* ---------- Card hover com glow ---------- */
+.mc:hover {
+  border-color: var(--border2);
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, .06),
+    0 24px 48px -28px rgba(0, 0, 0, .9),
+    0 0 0 1px var(--border2);
+}
+
+/* ---------- Pick button com pulse ao selecionar ---------- */
+@keyframes pickPulse {
+  0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, .5); }
+  70% { box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+}
+button.pick.sel {
+  animation: pickPop .28s cubic-bezier(.34, 1.56, .64, 1), pickPulse .6s ease-out .28s;
+}
+
+/* ---------- Barra 1X2 com animação ---------- */
+.barra-x12 .seg {
+  transition: filter .2s, transform .2s, width .5s cubic-bezier(.22, 1, .36, 1);
+}
+.barra-x12 .seg:hover { filter: brightness(1.2); transform: scaleY(1.08); }
+
+/* ---------- Empty state melhorado ---------- */
+.vazio {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-style: normal; text-align: center;
+  padding: 24px 20px; margin: 8px 0;
+  background: var(--surface2); border: 1px dashed var(--border2); border-radius: 16px;
+  color: var(--mut); font-size: 13px; font-weight: 500;
+  animation: fadeUp .35s ease both;
+}
+.vazio::before {
+  content: "📊"; font-size: 20px; opacity: .9; flex: none;
+  filter: grayscale(.2);
+}
+
+/* ---------- Skeleton mais elaborado ---------- */
+.skeleton {
+  border-radius: 16px;
+  background: linear-gradient(100deg, var(--surface2) 40%, rgba(56, 189, 248, .06) 50%, var(--surface2) 60%);
+  background-size: 220% 100%;
+  animation: shimmer 1.8s infinite linear;
+  position: relative; overflow: hidden;
+}
+.skeleton::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.04), transparent);
+  animation: shimmer 1.8s infinite linear;
+}
+@keyframes shimmer { to { background-position: -220% 0; } }
+
+/* ---------- Tooltip melhorado ---------- */
+[data-tip] { position: relative; cursor: help; border-bottom: 1px dotted currentColor; }
+[data-tip]:hover::after, [data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%);
+  width: max-content; max-width: 280px;
+  background: var(--surface3); color: var(--txt);
+  border: 1px solid var(--border2); border-radius: 10px;
+  padding: 8px 12px; font-size: 12px; font-weight: 500; line-height: 1.55;
+  text-transform: none; letter-spacing: 0;
+  box-shadow: 0 16px 36px -16px rgba(0,0,0,.8), 0 0 0 1px var(--border2);
+  z-index: 90; pointer-events: none; white-space: normal; text-align: left;
+}
+
+/* ---------- Transições de seção ---------- */
+.sec {
+  transition: opacity .3s ease, transform .3s ease;
+}
+.sec[hidden] {
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+}
+
+/* ---------- Badge de "ao vivo" pulsante ---------- */
+.badge.live {
+  color: var(--ok); background: rgba(52, 211, 153, .12);
+  border: 1px solid rgba(52, 211, 153, .35);
+  animation: livePulse 2s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, .3); }
+  50% { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+}
+
+/* ---------- Card de aposta com destaque de ganho ---------- */
+.ap.ganhou {
+  border-color: rgba(52, 211, 153, .35);
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, .08), 0 0 20px -10px rgba(52, 211, 153, .25);
+}
+.ap.perdeu {
+  border-color: rgba(251, 113, 133, .25);
+}
+
+/* ---------- Barra de progresso de carregamento ---------- */
+.loader-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transform: scaleX(0); transform-origin: left;
+  animation: loaderIn 1.2s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes loaderIn {
+  0% { transform: scaleX(0); }
+  30% { transform: scaleX(.4); }
+  70% { transform: scaleX(.8); }
+  100% { transform: scaleX(1); }
+}
+
+/* ---------- Scrollbar customizada por seção ---------- */
+.jogos::-webkit-scrollbar { width: 8px; height: 8px; }
+.jogos::-webkit-scrollbar-track { background: transparent; }
+.jogos::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+.jogos::-webkit-scrollbar-thumb:hover { background: var(--border2); background-clip: padding-box; }
+
+/* ---------- Responsividade melhorada ---------- */
+@media (max-width: 640px) {
+  .hero { padding: 16px; }
+  .hero-title { font-size: 17px; }
+  .jogos { grid-template-columns: 1fr; }
+  .combo-bar { flex-direction: column; gap: 10px; padding: 12px; }
+  .cb-actions { width: 100%; justify-content: stretch; }
+  .cb-actions .btn { flex: 1; }
+}
+
+/* ---------- Tema claro: ajustes finos ---------- */
+:root[data-theme="light"] .mc:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, .8),
+    0 16px 36px -20px rgba(15, 23, 42, .25),
+    0 0 0 1px var(--border2);
+}
+:root[data-theme="light"] .skeleton {
+  background: linear-gradient(100deg, rgba(15, 23, 42, .04) 40%, rgba(56, 130, 246, .04) 50%, rgba(15, 23, 42, .04) 60%);
+}
+:root[data-theme="light"] .vazio {
+  background: rgba(255, 255, 255, .7); border-color: rgba(56, 130, 246, .2);
+}
 
 /* ---------- Apostas: painel de banca ---------- */
 h3 {
@@ -884,4 +1130,76 @@ h3::before { content: ""; width: 3px; height: 12px; border-radius: 2px; flex: no
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   html { scroll-behavior: auto; }
+}
+
+/* ---------- Transições de seção ---------- */
+.sec {
+  transition: opacity .3s ease, transform .3s ease;
+}
+.sec[hidden] {
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+}
+
+/* ---------- Badge de "ao vivo" pulsante ---------- */
+.badge.live {
+  color: var(--ok); background: rgba(52, 211, 153, .12);
+  border: 1px solid rgba(52, 211, 153, .35);
+  animation: livePulse 2s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, .3); }
+  50% { box-shadow: 0 0 0 6px rgba(52, 211, 153, 0); }
+}
+
+/* ---------- Card de aposta com destaque de ganho ---------- */
+.ap.ganhou {
+  border-color: rgba(52, 211, 153, .35);
+  box-shadow: inset 0 0 0 1px rgba(52, 211, 153, .08), 0 0 20px -10px rgba(52, 211, 153, .25);
+}
+.ap.perdeu {
+  border-color: rgba(251, 113, 133, .25);
+}
+
+/* ---------- Barra de progresso de carregamento ---------- */
+.loader-bar {
+  position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  transform: scaleX(0); transform-origin: left;
+  animation: loaderIn 1.2s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes loaderIn {
+  0% { transform: scaleX(0); }
+  30% { transform: scaleX(.4); }
+  70% { transform: scaleX(.8); }
+  100% { transform: scaleX(1); }
+}
+
+/* ---------- Scrollbar customizada por seção ---------- */
+.jogos::-webkit-scrollbar { width: 8px; height: 8px; }
+.jogos::-webkit-scrollbar-track { background: transparent; }
+.jogos::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+.jogos::-webkit-scrollbar-thumb:hover { background: var(--border2); background-clip: padding-box; }
+
+/* ---------- Responsividade melhorada ---------- */
+@media (max-width: 640px) {
+  .hero { padding: 16px; }
+  .hero-title { font-size: 17px; }
+  .jogos { grid-template-columns: 1fr; }
+  .combo-bar { flex-direction: column; gap: 10px; padding: 12px; }
+  .cb-actions { width: 100%; justify-content: stretch; }
+  .cb-actions .btn { flex: 1; }
+}
+
+/* ---------- Tema claro: ajustes finos ---------- */
+:root[data-theme="light"] .mc:hover {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, .8),
+    0 16px 36px -20px rgba(15, 23, 42, .25),
+    0 0 0 1px var(--border2);
+}
+:root[data-theme="light"] .skeleton {
+  background: linear-gradient(100deg, rgba(15, 23, 42, .04) 40%, rgba(56, 130, 246, .04) 50%, rgba(15, 23, 42, .04) 60%);
+}
+:root[data-theme="light"] .vazio {
+  background: rgba(255, 255, 255, .7); border-color: rgba(56, 130, 246, .2);
 }

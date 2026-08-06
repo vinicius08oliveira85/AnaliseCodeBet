@@ -19,6 +19,12 @@ let buscaTimer = null;
 let apostas = carregarApostas();
 const BANKROLL_KEY = 'banca';
 
+function animarLoader() {
+  const bar = document.querySelector('.loader-bar');
+  if (!bar) return;
+  bar.addEventListener('animationend', () => bar.remove(), { once: true });
+}
+
 // ---- Tema claro/escuro ----
 function alternarTema() {
   const atual = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
@@ -739,6 +745,8 @@ function renderCombo() {
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn prim" onclick="irPara('sec-apostas')">Apostar nesta combinação</button>
     <button class="btn" onclick="copiarCombo()">Copiar</button>
     <button class="btn" onclick="limparPicks()">Limpar combinação</button></div>`;
+  bar.hidden = false;
+  requestAnimationFrame(() => bar.classList.add('in'));
 }
 
 function renderComboBar() {
@@ -1281,6 +1289,7 @@ if (autoEl) {
 fetch('analise.json')
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
   .then(d => {
+    animarLoader();
     data = d;
     const q = d.jogos.length;
     const gerado = new Date(d.gerado_em).toLocaleString('pt-BR',
@@ -1302,6 +1311,7 @@ fetch('analise.json')
     initSpy();
   })
   .catch(e => {
+    animarLoader();
     const sub = document.getElementById('sub');
     sub.classList.add('erro');
     sub.textContent = 'Erro ao carregar analise.json: ' + e.message + ' (sirva a pasta via HTTP, ex.: python3 -m http.server)';

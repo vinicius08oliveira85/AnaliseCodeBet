@@ -138,9 +138,10 @@ select.sort { font-size: 13px; }
 .vazio::before { content: "📊"; font-size: 17px; opacity: .85; flex: none; }
 
 /* ---------- Toasts com ícone ---------- */
-.toast { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.toast { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .toast.ok::before { content: "✓"; font-weight: 800; color: var(--ok); }
 .toast.err::before { content: "✕"; font-weight: 800; color: var(--bad); }
+.toast.info::before { content: "ℹ"; font-weight: 800; color: var(--accent); }
 
 /* ---------- Melhor palpite em destaque ---------- */
 button.pick.top {
