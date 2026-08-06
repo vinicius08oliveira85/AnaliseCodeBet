@@ -4,10 +4,18 @@ import csv
 import datetime as dt
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
 import over15 as ov
+
+
+def atomic_write_json(path: Path, data) -> None:
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
+
 
 GOL_LINHAS = [0.5, 1.5, 2.5, 3.5, 4.5, 5.5]
 HT_LINHAS = [0.5, 1.5, 2.5, 3.5]
@@ -98,7 +106,7 @@ def espn_bra_corners(data_dir, refresh):
     last_date = None
     for ev in events.values():
         try:
-            d = dt.datetime.fromisoformat(ev["date"].replace("Z", "+00:00")).date()
+            d = dt.datetime.fromisoformat(ev["date"].replace("Z", "+00:00") if ev["date"].endswith("Z") else ev["date"]).date()
         except (ValueError, KeyError, AttributeError):
             continue
         if last_date is None or d > last_date:
@@ -163,7 +171,7 @@ def espn_bra_corners(data_dir, refresh):
                 ev["hhg"], ev["hag"] = hhg, hag
     if total > 1:
         print()
-    cache.write_text(json.dumps(events, ensure_ascii=False))
+    atomic_write_json(cache, events)
     return events
 
 
@@ -240,7 +248,7 @@ def espn_cup_history(data_dir, refresh):
         if total_e > 1 and (i % 20 == 0 or i == total_e):
             print(f"\r  CDB detalhe: {i}/{total_e}", end="", flush=True)
         try:
-            s = json.loads(ov.fetch(f"https://site.api.espn.com/apis/site/v2/sports/soccer/bra.1/summary?event={eid}",
+            s = json.loads(ov.fetch(f"https://site.api.espn.com/apis/site/v2/sports/soccer/bra.copa_do_brazil/summary?event={eid}",
                                     timeout=20))
         except Exception:
             continue
@@ -286,7 +294,7 @@ def espn_cup_history(data_dir, refresh):
     rows = sorted(uniq.values(), key=lambda m: (m["date"], m["home"]))
     for m in rows:
         m["date"] = m["date"].isoformat()
-    cache.write_text(json.dumps(rows, ensure_ascii=False))
+    atomic_write_json(cache, rows)
     out = []
     for r in rows:
         m = dict(r)
@@ -986,13 +994,16 @@ def snapshot_previsoes(data_dir, novas):
            if not v.get("data") or _kickoff(v) >= cutoff}
     for p in novas:
         cur[p["id"]] = p
-    path.write_text(json.dumps(list(cur.values()), ensure_ascii=False))
+    atomic_write_json(path, list(cur.values()))
     return list(cur.values())
 
 
 def _kickoff(p):
     try:
-        return dt.datetime.fromisoformat(p["data"].replace("Z", "+00:00"))
+        raw = p["data"]
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        return dt.datetime.fromisoformat(raw)
     except (ValueError, AttributeError, KeyError):
         return dt.datetime.min.replace(tzinfo=dt.timezone.utc)
 
@@ -1012,7 +1023,7 @@ def coletar_resultados(data_dir, previsoes):
         ant = len(res)
         res = {k: v for k, v in res.items() if k in ids_vivos}
         if len(res) != ant:
-            path.write_text(json.dumps(res, ensure_ascii=False))
+            atomic_write_json(path, res)
     pendentes = []
     for p in previsoes:
         if not p.get("id") or p["id"] in res:
@@ -1075,7 +1086,7 @@ def coletar_resultados(data_dir, previsoes):
         for r in ex.map(um, pendentes):
             if r:
                 res[r[0]] = r[1]
-    path.write_text(json.dumps(res, ensure_ascii=False))
+    atomic_write_json(path, res)
     return res
 
 
@@ -1208,13 +1219,11 @@ def main():
 
     print("  Otimizando peso SOT (chutes no alvo) por Brier...")
     best_w, best_b = 0.0, 1e18
-    w = 0.0
-    while w <= 1.001:
+    for w in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
         valid_w, _ = build_valid(rows_all, rho_map, w)
         b = brier_x12(valid_w["x12"])
         if b < best_b:
             best_b, best_w = b, w
-        w += 0.1
     print(f"  w_sot={best_w:.1f} (Brier 1X2: {best_b:.4f})")
     valid0, _ = build_valid(rows_all, rho_map, 0.0)
     valid, base_tot = build_valid(rows_all, rho_map, best_w)

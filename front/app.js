@@ -1158,7 +1158,8 @@ function registrarAposta() {
   const odd = parseFloat(document.getElementById('ap-odd').value);
   const valor = parseFloat(document.getElementById('ap-valor').value);
   if (!(odd > 1)) { alert('Informe a odd da aposta (ex.: 2.50).'); return; }
-  if (!(valor > 0)) { alert('Informe o valor apostado (R$).'); return; }  const a = {
+  if (!(valor > 0)) { alert('Informe o valor apostado (R$).'); return; }
+  const a = {
     id: 'ap' + Date.now().toString(36),
     criada: new Date().toISOString(),
     odd, valor,
