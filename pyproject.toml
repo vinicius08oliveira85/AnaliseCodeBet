@@ -1,0 +1,32 @@
+[project]
+name = "analise-code-bet"
+version = "1.0.0"
+description = "Previsões de futebol com modelo Poisson + Dixon-Coles"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "responses>=0.24",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["analise*", "over15*", "model*", "data*", "backtest*", "api*"]
+
+[tool.pytest.ini_options]
+testpaths = ["test_app.py"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

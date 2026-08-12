@@ -202,7 +202,7 @@ def parse_date(s):
 def _float(s):
     try:
         v = float(s)
-        return v if v > 1 else None
+        return v if v > 0 else None
     except (TypeError, ValueError):
         return None
 
