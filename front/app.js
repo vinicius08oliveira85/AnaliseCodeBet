@@ -266,7 +266,7 @@ function initSpy() {
   const banca = document.getElementById('ap-banca');
   if (banca) banca.addEventListener('change', renderResumoBanca);
   if (!('IntersectionObserver' in window)) return;
-  const secs = ['sec-taxas', 'sec-combo', 'sec-auto', 'sec-jogos', 'sec-vivo', 'sec-apostas']
+  const secs = ['sec-taxas', 'sec-combo', 'sec-auto', 'sec-jogos', 'sec-valor', 'sec-vivo', 'sec-apostas']
     .map(id => document.getElementById(id)).filter(Boolean);
   const obs = new IntersectionObserver(es => {
     for (const e of es) if (e.isIntersecting) setMenuAtivo(e.target.id);
@@ -298,6 +298,7 @@ function recarregar() {
     autoCombos();
     renderAoVivo();
       renderApostas();
+      renderValor();
     })
     .catch(e => {
       if (btn) btn.textContent = '↻ atualizar';
@@ -339,6 +340,102 @@ function renderAoVivo() {
       <span class="resumo">acerto ${pct(lg.taxa)}</span></summary>
       <div class="vjogos">${jgs.map(rows).join('')}</div></details>`;
   }).join('') + '</div>';
+}
+
+function fmtOdd(x) { return (x || 0).toFixed(2).replace('.', ','); }
+
+function renderValor() {
+  const v = data.valor;
+  const meta = document.getElementById('valor-meta');
+  const statsEl = document.getElementById('valor-stats');
+  const tblEl = document.getElementById('valor-tbl');
+  if (!v || !v.resumo) {
+    if (meta) meta.textContent = '';
+    if (statsEl) statsEl.innerHTML = '<div class="vazio">Sem odds nos jogos testados para o backtest de valor nesta geração.</div>';
+    if (tblEl) tblEl.innerHTML = '';
+    return;
+  }
+  if (meta) meta.textContent = '· backtest com odds reais de mercado, fora de amostra';
+  const r = v.resumo;
+  const card = (lbl, val, cls) =>
+    `<div class="stat ${cls || ''}"><div class="l">${lbl}</div><div class="v">${val}</div></div>`;
+  const pctSinal = (x) => (x >= 0 ? '+' : '') + (100 * x).toFixed(1).replace('.', ',') + '%';
+  const roiCls = r.roi >= 0.02 ? 'ok' : r.roi <= -0.02 ? 'bad' : 'med';
+  const evCls = r.ev_medio >= 0.02 ? 'ok' : r.ev_medio <= -0.02 ? 'bad' : 'med';
+  let html =
+    card('Value bets (EV>0)', r.n + ' apostas', '') +
+    card('Taxa de acerto', pct(r.taxa), clsP(r.taxa)) +
+    card('ROI por aposta', pctSinal(r.roi), roiCls) +
+    card('EV médio por aposta', pctSinal(r.ev_medio), evCls) +
+    card('Odd média', fmtOdd(r.odd_media), '');
+  // faixas por odd mínima, por mercado
+  const grupos = [];
+  const pushBins = (tbl, label) => {
+    if (!tbl) return;
+    Object.keys(tbl).sort((a, b) => Number(a) - Number(b)).forEach(t => {
+      const b = tbl[t];
+      grupos.push({
+        label: label + ' · odd ≥ ' + t.replace('.', ','),
+        e: b,
+        lift: b.taxa - (1 / b.odd_media),
+      });
+    });
+  };
+  pushBins(v.x12, 'Resultado 1X2');
+  if (v.gols25) {
+    pushBins(v.gols25.over, 'Gols 2,5: mais de');
+    pushBins(v.gols25.under, 'Gols 2,5: menos de');
+  }
+  html += grupos.map(g => {
+    const lv = g.lift;
+    const liftHtml = (lv != null)
+      ? `<span class="n-lift ${clsLift(lv)}" title="Break-even desta odd média: ${pct(1 / g.e.odd_media)}">${fmtLift(lv)} vs break-even</span>` : '';
+    return `<div class="stat ${clsP(g.e.taxa)}"><div class="l">${esc(g.label)}</div>
+      <div class="v">${pct(g.e.taxa)}</div>
+      <div class="n">${g.e.n} apostas · ROI ${pctSinal(g.e.roi)} · EV ${pctSinal(g.e.ev_medio)}${liftHtml}</div>
+      <div class="bar" style="--w:${Math.round(g.e.taxa * 100)}%"></div></div>`;
+  }).join('');
+  statsEl.innerHTML = html;
+  // odds justas dos próximos jogos (melhor palpite por jogo, P >= 60%)
+  const cand = [];
+  data.jogos.forEach((g, i) => {
+    if (!g.prob) return;
+    const legs = melhoresPorCategoria(i);
+    const leg = legs.length ? legs[0] : null;
+    if (!leg || leg.p < 0.6) return;
+    cand.push({ i, g, leg });
+  });
+  cand.sort((a, b) => b.leg.p - a.leg.p);
+  const top = cand.slice(0, 60);
+  if (!tblEl) return;
+  if (!top.length) {
+    tblEl.innerHTML = '<div class="vazio">Nenhum palpite com chance ≥ 60% nesta rodada.</div>';
+    return;
+  }
+  tblEl.innerHTML = top.map(c => {
+    const fair = 1 / c.leg.p;
+    const nome = c.leg.nome || nomeMercado(c.leg.tipo, c.leg.li);
+    return `<div class="vrow">
+      <span class="vrow-teams">${crest(c.g.casa, 16)}${esc(c.g.casa)} × ${esc(c.g.fora)}${crest(c.g.fora, 16)}</span>
+      <span class="vrow-pick">${esc(nome)}</span>
+      <span class="vrow-p">${pct(c.leg.p)}</span>
+      <span class="vrow-fair" title="Odd justa = 1 / probabilidade do modelo">justa ${fmtOdd(fair)}</span>
+      <input class="odd-in" type="number" step="0.01" min="1.01" placeholder="odd" oninput="evCalc(this, ${c.leg.p.toFixed(4)})">
+      <span class="ev-badge">—</span>
+    </div>`;
+  }).join('');
+}
+
+function evCalc(input, p) {
+  const badge = input.parentElement.querySelector('.ev-badge');
+  const odd = parseFloat(input.value);
+  if (!badge || !(odd > 1)) {
+    if (badge) { badge.textContent = '—'; badge.className = 'ev-badge'; }
+    return;
+  }
+  const ev = odd * p - 1;
+  badge.textContent = (ev >= 0 ? 'EV +' : 'EV ') + (100 * ev).toFixed(1).replace('.', ',') + '%';
+  badge.className = 'ev-badge ' + (ev >= 0.02 ? 'ok' : ev <= -0.02 ? 'bad' : 'med');
 }
 
 function taxaPick(tipo, linha, p) {
@@ -1286,7 +1383,8 @@ fetch('analise.json')
       { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     document.getElementById('sub').classList.remove('erro');
     document.getElementById('sub').textContent =
-      'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot;
+      'Gerado em ' + gerado + ' · ' + q + ' jogos · peso de chutes no alvo: ' + d.w_sot +
+      (d.temp && d.temp > 1.0001 ? ' · calibração t=' + d.temp.toFixed(2) : '');
     document.getElementById('meta1').textContent = '· validação fora de amostra';
     fillHero(d);
     renderFiltro();
@@ -1298,6 +1396,7 @@ fetch('analise.json')
     autoCombos();
     renderAoVivo();
     renderApostas();
+    renderValor();
     initSpy();
   })
   .catch(e => {

@@ -131,6 +131,18 @@ class TestFrontJson(unittest.TestCase):
             for k in ("hg", "ag", "hhg", "hag", "hc", "ac"):
                 self.assertIn(k, r)
 
+    def test_valor_key(self):
+        self.assertIn("valor", self.data)
+        self.assertIn("calibracao", self.data)
+        v = self.data["valor"]
+        self.assertIn("x12", v)
+        self.assertIn("gols25", v)
+        self.assertIn("over", v["gols25"])
+        self.assertIn("under", v["gols25"])
+        if v.get("resumo"):
+            for k in ("n", "taxa", "roi", "ev_medio", "odd_media"):
+                self.assertIn(k, v["resumo"])
+
 
 class TestAoVivo(unittest.TestCase):
     def test_picks_previsao(self):

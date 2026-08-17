@@ -54,7 +54,11 @@ def load_rows(data_dir, refresh):
                     rows.append({"date": d, "season": r["Season"], "home": r["Home"], "away": r["Away"],
                                  "hg": hg, "ag": ag,
                                  "hhg": None, "hag": None, "hst": None, "ast": None,
-                                 "hc": None, "ac": None})
+                                 "hc": None, "ac": None,
+                                 "oh": ov._float(r.get("B365CH")) or ov._float(r.get("AvgCH")),
+                                 "od": ov._float(r.get("B365CD")) or ov._float(r.get("AvgCD")),
+                                 "oa": ov._float(r.get("B365CA")) or ov._float(r.get("AvgCA")),
+                                 "o25_over": None, "o25_under": None})
         elif lg.get("espn_only"):
             print(f"  {lg['nome']}: buscando histórico na ESPN (1ª vez demora)...")
             rows = espn_cup_history(data_dir, refresh_cdb)
@@ -80,7 +84,12 @@ def load_rows(data_dir, refresh):
                                      "hg": hg, "ag": ag,
                                      "hhg": ov._goals(r.get("HTHG")), "hag": ov._goals(r.get("HTAG")),
                                      "hst": ov._goals(r.get("HST")), "ast": ov._goals(r.get("AST")),
-                                     "hc": ov._float(r.get("HC")), "ac": ov._float(r.get("AC"))})
+                                     "hc": ov._float(r.get("HC")), "ac": ov._float(r.get("AC")),
+                                     "oh": ov._float(r.get("B365H")) or ov._float(r.get("AvgH")),
+                                     "od": ov._float(r.get("B365D")) or ov._float(r.get("AvgD")),
+                                     "oa": ov._float(r.get("B365A")) or ov._float(r.get("AvgA")),
+                                     "o25_over": ov._float(r.get("B365>2.5")) or ov._float(r.get("Avg>2.5")),
+                                     "o25_under": ov._float(r.get("B365<2.5")) or ov._float(r.get("Avg<2.5"))})
         rows.sort(key=lambda m: (m["date"], m["season"]))
         rows_by_league[lg["key"]] = rows
     return rows_by_league
@@ -736,7 +745,9 @@ def backtest_all(rows, tune_season, rho, w_sot=0.0, liga=None):
                        "home": m["home"], "away": m["away"], "liga": liga,
                        "hg": m["hg"], "ag": m["ag"],
                        "hhg": m["hhg"], "hag": m["hag"], "hc": m["hc"], "ac": m["ac"],
-                       "lam": lam_h + lam_a, "lamc": r["lam_c"], "lam_ht": r["lam_ht"]}
+                       "lam": lam_h + lam_a, "lamc": r["lam_c"], "lam_ht": r["lam_ht"],
+                       "odds": {"oh": m.get("oh"), "od": m.get("od"), "oa": m.get("oa"),
+                                "o25_over": m.get("o25_over"), "o25_under": m.get("o25_under")}}
                 jm = joint_metrics(lam_h, lam_a, rho)
                 rec["ph"], rec["pd"], rec["pa"] = jm["ph"], jm["pd"], jm["pa"]
                 rec["gols"] = {"over": jm["gols_over"], "under": jm["gols_under"]}
@@ -853,6 +864,213 @@ def validacao_dc(items, min_n=30):
             tbl[f"{t:g}"] = {"n": len(sel), "taxa": ok / len(sel)}
         res[out] = tbl
     return res
+
+
+def temp_scale(ps, t):
+    """Temperature scaling: suaviza as probabilidades 1X2 (t>1 encolhe o topo),
+    preservando ordem e soma=1. Equivale a softmax(log(p)/t)."""
+    lg = [math.log(max(p, 1e-12)) / t for p in ps]
+    m = max(lg)
+    ex = [math.exp(x - m) for x in lg]
+    s = sum(ex)
+    return [x / s for x in ex]
+
+
+def calibra_items(items, t):
+    for x in items:
+        x["ph"], x["pd"], x["pa"] = temp_scale((x["ph"], x["pd"], x["pa"]), t)
+
+
+def ece_x12(items):
+    """Erro de calibração (ECE): |previsto - realizado| ponderado por n, por faixa."""
+    tot, n_all = 0.0, 0
+    for lo, hi in ((0.50, 0.60), (0.60, 0.70), (0.70, 0.80), (0.80, 1.01)):
+        sel = []
+        for x in items:
+            p = max(x["ph"], x["pd"], x["pa"])
+            if lo <= p < hi:
+                sel.append(x)
+        n = len(sel)
+        if not n:
+            continue
+        ok = 0
+        for x in sel:
+            ph, pd, pa = x["ph"], x["pd"], x["pa"]
+            m = max(ph, pd, pa)
+            if (ph >= m and x["hg"] > x["ag"]) or (pd >= m and x["hg"] == x["ag"]) \
+                    or (pa >= m and x["hg"] < x["ag"]):
+                ok += 1
+        pred = sum(max(x["ph"], x["pd"], x["pa"]) for x in sel) / n
+        tot += n * abs(pred - ok / n)
+        n_all += n
+    return tot / n_all if n_all else 0.0
+
+
+def valor_x12_stats(items):
+    """ROI do backtest de valor restrito ao 1X2 (EV>0 com odds reais)."""
+    res = []
+    for x in items:
+        o = x.get("odds") or {}
+        odds = (o.get("oh"), o.get("od"), o.get("oa"))
+        if not all(odds):
+            continue
+        p = (x["ph"], x["pd"], x["pa"])
+        k = max(range(3), key=lambda i: p[i])
+        e = p[k] * odds[k] - 1.0
+        if e <= 0.0:
+            continue
+        win = (x["hg"] > x["ag"] and k == 0) or (x["hg"] == x["ag"] and k == 1) \
+                or (x["hg"] < x["ag"] and k == 2)
+        res.append({"odd": odds[k], "profit": odds[k] - 1.0 if win else -1.0})
+    n = len(res)
+    return {"n": n, "roi": (sum(x["profit"] for x in res) / n) if n else 0.0}
+
+
+def valor_x12_por_ev(items):
+    """ROI do 1X2 value bet por piso de EV exigido (calibração prática):
+    quanto de margem (edge) é preciso exigir para o valor virar lucro."""
+    res = []
+    for x in items:
+        o = x.get("odds") or {}
+        odds = (o.get("oh"), o.get("od"), o.get("oa"))
+        if not all(odds):
+            continue
+        p = (x["ph"], x["pd"], x["pa"])
+        k = max(range(3), key=lambda i: p[i])
+        e = p[k] * odds[k] - 1.0
+        if e <= 0.0:
+            continue
+        win = (x["hg"] > x["ag"] and k == 0) or (x["hg"] == x["ag"] and k == 1) \
+                or (x["hg"] < x["ag"] and k == 2)
+        res.append({"odd": odds[k], "ev": e, "hit": win,
+                    "profit": odds[k] - 1.0 if win else -1.0})
+    out = {}
+    for thr in (0.0, 0.02, 0.05, 0.08, 0.10, 0.15):
+        sel = [r for r in res if r["ev"] >= thr]
+        n = len(sel)
+        if n < 20:
+            continue
+        out[f"{thr:g}"] = {"n": n, "taxa": sum(1 for r in sel if r["hit"]) / n,
+                           "roi": sum(r["profit"] for r in sel) / n,
+                           "ev_medio": sum(r["ev"] for r in sel) / n}
+    return out
+
+
+def otimiza_temp(items):
+    """Escolhe a temperatura que minimiza o erro de calibração (ECE) 1X2.
+    Retorna (melhor t, tabela t x (Brier, ECE, ROI 1X2))."""
+    tbl = []
+    best_t, best_ece = 1.0, ece_x12(items)
+    for i in range(13):
+        t = 1.0 + 0.05 * i
+        xs = [dict(x) for x in items]
+        calibra_items(xs, t)
+        b = brier_x12(xs)
+        e = ece_x12(xs)
+        roi = valor_x12_stats(xs)["roi"]
+        tbl.append((t, b, e, roi))
+        if e < best_ece:
+            best_ece, best_t = e, t
+    return best_t, tbl
+
+
+def validacao_valor(valid, min_n=20):
+    """Backtest de value bets fora de amostra: aposta em EV>0 usando odds reais
+    de mercado (pré-jogo) e probabilidades do modelo. ROI em stake unitário."""
+    L25 = GOL_LINHAS.index(2.5)
+
+    def ev(p, odd):
+        if not p or not odd or odd <= 1.0:
+            return None
+        return p * odd - 1.0
+
+    def bins(results):
+        tbl = {}
+        for t in (1.3, 1.5, 1.8, 2.2, 2.8):
+            sel = [x for x in results if x["odd"] >= t]
+            if len(sel) < min_n:
+                continue
+            n = len(sel)
+            tbl[f"{t:g}"] = {"n": n,
+                             "taxa": sum(1 for x in sel if x["hit"]) / n,
+                             "roi": sum(x["profit"] for x in sel) / n,
+                             "ev_medio": sum(x["ev"] for x in sel) / n,
+                             "odd_media": sum(x["odd"] for x in sel) / n}
+        return tbl
+
+    def pick_win(k, x):
+        if x["hg"] > x["ag"]:
+            return k == 0
+        if x["hg"] == x["ag"]:
+            return k == 1
+        return k == 2
+
+    res12 = []
+    for x in valid["x12"]:
+        o = x.get("odds") or {}
+        odds = (o.get("oh"), o.get("od"), o.get("oa"))
+        if not all(odds):
+            continue
+        p = (x["ph"], x["pd"], x["pa"])
+        k = max(range(3), key=lambda i: p[i])
+        e = ev(p[k], odds[k])
+        if e is None or e <= 0.0:
+            continue
+        res12.append({"odd": odds[k], "ev": e, "hit": pick_win(k, x),
+                      "profit": odds[k] - 1.0 if pick_win(k, x) else -1.0,
+                      "p": p[k], "nome": ["Casa", "Empate", "Fora"][k]})
+    out = {"x12": bins(res12), "gols25": {"over": {}, "under": {}}}
+    raws = [("x12", res12)]
+    for side in ("over", "under"):
+        res = []
+        for x in valid[f"gols_{side}"]:
+            o = (x.get("odds") or {}).get(f"o25_{side}")
+            if not o:
+                continue
+            p = x["gols"][side][L25]
+            e = ev(p, o)
+            if e is None or e <= 0.0:
+                continue
+            tot = x["hg"] + x["ag"]
+            win = tot >= 3 if side == "over" else tot <= 2
+            res.append({"odd": o, "ev": e, "hit": win,
+                        "profit": o - 1.0 if win else -1.0, "p": p})
+        out["gols25"][side] = bins(res)
+        raws.append((f"gols25_{side}", res))
+    allr = [dict(x, mercado=mkt) for mkt, xs in raws for x in xs]
+    if len(allr) >= min_n:
+        n = len(allr)
+        out["resumo"] = {"n": n,
+                         "taxa": sum(1 for x in allr if x["hit"]) / n,
+                         "roi": sum(x["profit"] for x in allr) / n,
+                         "ev_medio": sum(x["ev"] for x in allr) / n,
+                         "odd_media": sum(x["odd"] for x in allr) / n}
+    return out
+
+
+def calibracao_x12(items):
+    """Calibração do 1X2: faixas de probabilidade do modelo vs taxa real."""
+    out = []
+    for lo, hi in ((0.50, 0.60), (0.60, 0.70), (0.70, 0.80), (0.80, 1.01)):
+        sel = []
+        for x in items:
+            p = max(x["ph"], x["pd"], x["pa"])
+            if lo <= p < hi:
+                sel.append(x)
+        n = len(sel)
+        if not n:
+            continue
+        ok = 0
+        for x in sel:
+            ph, pd, pa = x["ph"], x["pd"], x["pa"]
+            m = max(ph, pd, pa)
+            if (ph >= m and x["hg"] > x["ag"]) or (pd >= m and x["hg"] == x["ag"]) \
+                    or (pa >= m and x["hg"] < x["ag"]):
+                ok += 1
+        out.append({"de": lo, "ate": hi, "n": n,
+                    "pred": sum(max(x["ph"], x["pd"], x["pa"]) for x in sel) / n,
+                    "taxa": ok / n})
+    return out
 
 
 def bases_valid(sub):
@@ -1219,6 +1437,20 @@ def main():
     valid0, _ = build_valid(rows_all, rho_map, 0.0)
     valid, base_tot = build_valid(rows_all, rho_map, best_w)
 
+    print("  Calibrando 1X2 por temperature scaling (objetivo: ECE)...")
+    raw_calib = calibracao_x12(valid["x12"])
+    raw_valor = validacao_valor(valid).get("resumo")
+    best_t, temp_tbl = otimiza_temp(valid["x12"])
+    print("    t     Brier   ECE    ROI 1X2 (value bets)")
+    for t, b, e, roi in temp_tbl:
+        print(f"    {t:.2f}  {b:.4f}  {e:.4f}  {roi:+.1%}")
+    print(f"  temperatura={best_t:.2f}")
+    if best_t > 1.0001:
+        calibra_items(valid["x12"], best_t)
+        calibra_items(valid0["x12"], best_t)
+    else:
+        print("  (temperatura 1.00: sem encolhimento — o modelo já é o mais calibrado)")
+
     print(f"\n  Base over 1.5 (validação): {base_tot['h']/base_tot['n']:.1%} (n={base_tot['n']})")
     print("\n== VALIDAÇÃO fora de amostra ==")
     v12 = validacao(valid["x12"], "x12")
@@ -1305,6 +1537,10 @@ def main():
             k = drift_k(ra, rp, n)
             lam_h, lam_a = lam_h * k, lam_a * k
             jm = joint_metrics(lam_h, lam_a, rho)
+            if best_t > 1.0001:
+                xp = temp_scale((jm["ph"], jm["pd"], jm["pa"]), best_t)
+            else:
+                xp = (jm["ph"], jm["pd"], jm["pa"])
             e, h = line_probs(r["lam_c"], r["lam_ht"], ESC_LINHAS, bases)
             lam_esc = None if r["lam_c"] is None else round(r["lam_c"][0] + r["lam_c"][1], 2)
             lam_ht = None if r["lam_ht"] is None else round(r["lam_ht"][0] + r["lam_ht"][1], 2)
@@ -1316,7 +1552,7 @@ def main():
                 "lam_ht": lam_ht,
                 "lam_esc": lam_esc,
                 "prob": {
-                    "x1": round(jm["ph"], 4), "x": round(jm["pd"], 4), "x2": round(jm["pa"], 4),
+                    "x1": round(xp[0], 4), "x": round(xp[1], 4), "x2": round(xp[2], 4),
                     "gols_over": [round(v, 4) for v in jm["gols_over"]],
                     "gols_under": [round(v, 4) for v in jm["gols_under"]],
                     "ht_over": [round(v, 4) for v in h["over"]],
@@ -1338,6 +1574,29 @@ def main():
     if ao_vivo["n"]:
         print(f"  Ao vivo: {ao_vivo['n']} jogos finalizados, {ao_vivo['picks_n']} palpites, "
               f"acerto {ao_vivo['taxa']:.1%}")
+    xev = valor_x12_por_ev(valid["x12"])
+    if xev:
+        print("  Valor 1X2 por piso de EV exigido (calibração prática):")
+        for thr, st in xev.items():
+            print(f"    EV>={thr.replace('.', ',')}: n={st['n']}, taxa {st['taxa']:.1%}, "
+                  f"ROI {st['roi']:+.1%}, EV médio {st['ev_medio']:+.1%}")
+    valor = validacao_valor(valid)
+    if valor.get("resumo"):
+        rv = valor["resumo"]
+        if raw_valor:
+            print(f"  Valor (EV>0 calibrado): {rv['n']} apostas, taxa {rv['taxa']:.1%}, "
+                  f"ROI {rv['roi']:+.1%} (antes {raw_valor['roi']:+.1%}, n={raw_valor['n']}), "
+                  f"EV médio {rv['ev_medio']:+.1%}")
+        else:
+            print(f"  Valor (EV>0): {rv['n']} apostas, taxa {rv['taxa']:.1%}, "
+                  f"ROI {rv['roi']:+.1%}, EV médio {rv['ev_medio']:+.1%}")
+    calib = calibracao_x12(valid["x12"])
+    raw_by_bin = {(c["de"], c["ate"]): c for c in raw_calib}
+    for c in calib:
+        rc = raw_by_bin.get((c["de"], c["ate"]))
+        extra = f", antes {rc['taxa']:.1%}" if rc else ""
+        print(f"  Calibração 1X2 P {c['de']:.2f}-{c['ate']:.2f}: acerto {c['taxa']:.1%} "
+              f"(previsto {c['pred']:.1%}{extra}, n={c['n']})")
     out = {
         "gerado_em": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "validacao": {
@@ -1354,6 +1613,9 @@ def main():
             **validacao_por_grupos(valid),
         },
         "w_sot": best_w,
+        "temp": best_t,
+        "valor": valor,
+        "calibracao": calib,
         "ao_vivo": ao_vivo,
         "resultados": resultados,
         "linhas_gols": GOL_LINHAS,
